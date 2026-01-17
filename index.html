@@ -58,7 +58,9 @@
   display:inline-block;
 }
 
-.pill{
+#levelPill{display:none;}
+
+    .pill{
       background: linear-gradient(180deg, rgba(17,24,38,1) 0%, rgba(10,16,26,1) 100%);
   border:1px solid #22304a;
   padding:6px 10px;
@@ -239,7 +241,9 @@ canvas{
 
   .title{ color:#eaf2ff; }
 
-  .pill{
+  #levelPill{display:none;}
+
+    .pill{
     background: rgba(17,24,38,.9);
     border-color:#2a3a5c;
   }
@@ -503,7 +507,64 @@ let gameOver= false;
 
 let level = 1;
 let score = 0;
-let nextLevelAt = 500;
+let nextLevelAt = 1000;
+
+/* =========================================================
+   SECTION 6B) SPECIAL LEVEL EVENTS (v11)
+   5% Yellow-only, 5% No-dash (+15% score). Mutually exclusive.
+   ========================================================= */
+const SPECIAL = {
+  NONE: "NONE",
+  YELLOW_ONLY: "YELLOW_ONLY",
+  NO_DASH: "NO_DASH",
+};
+
+let specialLevel = SPECIAL.NONE;
+let lastSpecialLevel = SPECIAL.NONE;
+
+let specialBannerT = 0;
+let specialBannerLine1 = "";
+let specialBannerLine2 = "";
+let specialBannerColor = "#e6edf3";
+
+function setSpecialLevel(mode){
+  specialLevel = mode;
+
+  if (mode === SPECIAL.YELLOW_ONLY){
+    specialBannerLine1 = "SPECIAL LEVEL";
+    specialBannerLine2 = "YELLOW SWARM";
+    specialBannerColor = "#ffd34d";
+    specialBannerT = 2.6;
+  } else if (mode === SPECIAL.NO_DASH){
+    specialBannerLine1 = "SPECIAL LEVEL";
+    specialBannerLine2 = "NO DASH  +15% SCORE";
+    specialBannerColor = "#ff8b5b";
+    specialBannerT = 2.6;
+  } else {
+    specialBannerLine1 = "";
+    specialBannerLine2 = "";
+    specialBannerColor = "#e6edf3";
+    specialBannerT = 0;
+  }
+}
+
+function rollSpecialLevel(){
+  // 5% yellow-only, 5% no-dash, cannot repeat twice in a row
+  let rolled = SPECIAL.NONE;
+  const r = Math.random();
+  if (r < 0.05) rolled = SPECIAL.YELLOW_ONLY;
+  else if (r < 0.10) rolled = SPECIAL.NO_DASH;
+
+  if (rolled !== SPECIAL.NONE && rolled == lastSpecialLevel) rolled = SPECIAL.NONE;
+
+  setSpecialLevel(rolled);
+  lastSpecialLevel = rolled;
+}
+
+function specialScoreMult(){
+  return (specialLevel === SPECIAL.NO_DASH) ? 1.15 : 1.0;
+}
+
 
 
  /* =========================================================
@@ -597,7 +658,7 @@ function enemyBaseSpeed(kindKey, lv){
 const obstacles = [];
 const OB_MIN_GAP = 22; // spacing so they don't overlap
 const OB_CORNER = 16; // rounded corners (visual)
-const OB_PAD = 6; // collision padding
+const OB_PAD = 10; // collision padding
 
 
  /* =========================================================
@@ -1058,34 +1119,66 @@ function scoreExpZoneMult(){
 }
 
 function drawZones(){
-  // world->screen circles
-  function drawCircle(z, fill, stroke){
-    // NOTE: world->screen helpers in this codebase are wx/wy.
-    // (worldToScreenX/Y were used in an older version.)
+  // world->screen circles + labels
+  function drawCircleLabeled(z, fill, stroke, label){
     const x = wx(z.x);
     const y = wy(z.y);
+
+    // fill + stroke
     ctx.beginPath();
     ctx.arc(x, y, z.r, 0, Math.PI*2);
     ctx.fillStyle = fill;
     ctx.globalAlpha = 0.10;
     ctx.fill();
-    ctx.globalAlpha = 0.22;
+    ctx.globalAlpha = 0.26;
     ctx.strokeStyle = stroke;
     ctx.lineWidth = 2;
     ctx.stroke();
     ctx.globalAlpha = 1;
+
+    // label (world-space, centered)
+    if (label){
+      ctx.save();
+      ctx.globalAlpha = 0.75;
+      ctx.fillStyle = "#e6edf3";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.font = "800 14px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+      ctx.fillText(label, x, y);
+      ctx.restore();
+    }
+  }
+
+  // helper: unlabeled circle (legacy callers)
+  function drawCircle(z, fill, stroke){
+    drawCircleLabeled(z, fill, stroke, "");
+  }
+
+  // v11: special level banner
+  if (specialBannerT > 0) {
+    const a = Math.min(1, specialBannerT / 0.35);
+    ctx.globalAlpha = 0.92 * a;
+    ctx.font = "900 34px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+    ctx.fillStyle = specialBannerColor;
+    ctx.textAlign = "center";
+    ctx.fillText(specialBannerLine1, VIEW_W/2, VIEW_H/2 - 90);
+    ctx.font = "900 42px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+    ctx.fillText(specialBannerLine2, VIEW_W/2, VIEW_H/2 - 50);
+    ctx.fillStyle = "#e6edf3";
+    ctx.globalAlpha = 1;
   }
 
   // TL swamp
-  for (const z of ZONES.swamp) drawCircle(z, "#3df9a8", "#b8ffe4");
+  for (const z of ZONES.swamp) drawCircleLabeled(z, "#3df9a8", "#b8ffe4", "SWAMP -10% SPEED");
 
   // BR speed zones
-  for (const z of ZONES.speedPlayer) drawCircle(z, "#6ee7ff", "#c9f3ff");
-  for (const z of ZONES.speedEnemy)  drawCircle(z, "#ff5b5b", "#ffd4d4");
+  for (const z of ZONES.speedPlayer) drawCircleLabeled(z, "#6ee7ff", "#c9f3ff", "+10% PLAYER SPD");
+  for (const z of ZONES.speedEnemy)  drawCircleLabeled(z, "#ff5b5b", "#ffd4d4", "+10% ENEMY SPD");
 
   // BL exp
-  for (const z of ZONES.exp) drawCircle(z, "#ffd34d", "#fff0b8");
+  for (const z of ZONES.exp) drawCircleLabeled(z, "#ffd34d", "#fff0b8", "+10% SCORE");
 }
+
 
 
 
@@ -1106,7 +1199,7 @@ function playerInsideZone(){
    - Completing a mission immediately rolls the next
    - Reward: +250 score affected by levelBonusMult (NOT zone)
    ========================================================= */
-const MISSION_REWARD = 125;
+const MISSION_REWARD = 250;
 
 
  /* =========================================================
@@ -1115,14 +1208,30 @@ const MISSION_REWARD = 125;
     ========================================================= */
 
 const MISSIONS = [
-  { id:"M_NO_DASH_30", title:"Survive 30s without dashing", kind:"timer_no_dash", target:30 },
-  { id:"M_ZONE_5",     title:"Stay in the bonus zone for 5s straight", kind:"zone_streak", target:5 },
-  { id:"M_ORBS_3",     title:"Collect 3 orbs", kind:"collect_orbs", target:3 },
-  { id:"M_DASH_5",     title:"Sprint 5 times", kind:"dash_count", target:5 },
+  { id:"M_NO_DASH_30",  title:"Survive 30s without dashing",            kind:"timer_no_dash",     target:30 },
+  { id:"M_BONUS_6",    title:"Stay in a bonus zone for 6s",            kind:"zone_time",        target:6 },
+  { id:"M_QUAD_20",    title:"Survive 20s without leaving your quadrant", kind:"timer_quadrant", target:20 },
+  { id:"M_ORBS_3",     title:"Collect 3 orbs",                         kind:"collect_orbs",     target:3 },
+  { id:"M_DASH_3",     title:"Dash 3 times",                           kind:"dash_count",       target:3 },
 ];
+
+const MISSION_TIME_LIMITS = [60, 45, 30]; // tier 1..3
+let missionTimeTier = 1;
 
 let missionBag = [];
 let mission = null;
+
+
+function playerQuadrant(){
+  const midX = WORLD_W / 2;
+  const midY = WORLD_H / 2;
+  const left = player.x < midX;
+  const top  = player.y < midY;
+  if (top && left) return "TL";
+  if (top && !left) return "TR";
+  if (!top && left) return "BL";
+  return "BR";
+}
 
 function refillMissionBag(){
 
@@ -1158,6 +1267,8 @@ function nextMission(){
     target: m.target,
     progress: 0,
     streak: 0,
+    timeLeft: MISSION_TIME_LIMITS[Math.min(2, missionTimeTier-1)],
+    homeQuadrant: playerQuadrant(),
   };
 }
 
@@ -1170,17 +1281,28 @@ function awardMission(){
     ========================================================= */
   // affected by levelBonusMult, NOT by zone bonus
   score += MISSION_REWARD * levelBonusMult;
+  missionTimeTier = 1;
   nextMission();
 }
 
 function updateMission(dt){
 
-
- /* =========================================================
-    SECTION 13E) MISSION UPDATE
-    Tick timer missions + zone streak missions.
-    ========================================================= */
+  /* =========================================================
+     SECTION 13E) MISSION UPDATE (v11)
+     - Timer expiry replaces mission (3-tier time limits)
+     - No-dash timer increments unless you dash (reset handled in missionOnDash)
+     - Bonus-zone timer increments while inside a bonus zone
+     - Quadrant timer increments while staying in same quadrant (resets on leave)
+     ========================================================= */
   if (!mission) return;
+
+  // expiry
+  mission.timeLeft -= dt;
+  if (mission.timeLeft <= 0){
+    missionTimeTier = Math.min(3, missionTimeTier + 1);
+    nextMission();
+    return;
+  }
 
   if (mission.kind === "timer_no_dash"){
     mission.progress += dt;
@@ -1188,17 +1310,27 @@ function updateMission(dt){
     return;
   }
 
-  if (mission.kind === "zone_streak"){
-    if (playerInsideZone()) mission.streak += dt;
-    else mission.streak = 0;
-
-    mission.progress = mission.streak;
+  if (mission.kind === "zone_time"){
+    if (playerInsideBonusZone()) mission.progress += dt;
     if (mission.progress >= mission.target) awardMission();
+    return;
+  }
+
+  if (mission.kind === "timer_quadrant"){
+    const q = playerQuadrant();
+    if (q === mission.homeQuadrant){
+      mission.progress += dt;
+      if (mission.progress >= mission.target) awardMission();
+    } else {
+      mission.progress = 0;
+      mission.homeQuadrant = q;
+    }
     return;
   }
 
   // counters updated from events (orbs collected / dashes)
 }
+
 
 function missionOnDash(){
 
@@ -1230,28 +1362,30 @@ function missionOnOrbCollected(){
 }
 
 function updateMissionHud(){
-    if (!missionPill) return;
+  if (!missionPill) return;
 
-    if (!mission){
-      missionPill.textContent = "Mission: —";
-      if (missionBar) missionBar.style.width = "0%";
-      return;
-    }
-
-    let progText = "";
-    let pct = 0;
-
-    if (mission.kind === "timer_no_dash" || mission.kind === "zone_streak"){
-      progText = `${mission.progress.toFixed(1)} / ${mission.target.toFixed(0)}s`;
-      pct = clamp(mission.progress / mission.target, 0, 1);
-    } else {
-      progText = `${mission.progress} / ${mission.target}`;
-      pct = clamp(mission.progress / mission.target, 0, 1);
-    }
-
-    missionPill.textContent = `Mission: ${mission.title} (${progText})`;
-    if (missionBar) missionBar.style.width = `${Math.round(pct * 100)}%`;
+  if (!mission){
+    missionPill.textContent = "Mission: —";
+    if (missionBar) missionBar.style.width = "0%";
+    return;
   }
+
+  let progText = "";
+  let pct = 0;
+
+  const isTimer = (mission.kind === "timer_no_dash" || mission.kind === "zone_time" || mission.kind === "timer_quadrant");
+  if (isTimer){
+    progText = `${mission.progress.toFixed(1)} / ${mission.target.toFixed(0)}s`;
+    pct = clamp(mission.progress / mission.target, 0, 1);
+  } else {
+    progText = `${Math.floor(mission.progress)} / ${mission.target}`;
+    pct = clamp(mission.progress / mission.target, 0, 1);
+  }
+
+  missionPill.textContent = `Mission (+${MISSION_REWARD}): ${mission.title} (${progText}) • ${Math.ceil(mission.timeLeft)}s`;
+  if (missionBar) missionBar.style.width = `${Math.round(pct * 100)}%`;
+}
+
 /* =========================================================
    SECTION 13) PARTICLES (FEEDBACK)
    ========================================================= */
@@ -1477,7 +1611,7 @@ function ensureCapBeforeSpawning(targetKindKey){
   let pps = 0;
   for (const e of enemies) pps += e.kind.pps;
 
-     let factor = levelPenaltyFactor(level) * levelBonusMult * scoreExpZoneMult();
+     let factor = levelPenaltyFactor(level) * levelBonusMult * scoreExpZoneMult() * specialScoreMult();
 
      score += pps * dt * factor;
  }
@@ -1696,7 +1830,7 @@ function updateHud(){
 
      level = 1;
      score = 0;
-     nextLevelAt = 500;
+     nextLevelAt = 1000;
 
      player.x = WORLD_W/2; player.y = WORLD_H/2;
      player.r = BASE.r;
@@ -1728,6 +1862,8 @@ function updateHud(){
 
     levelBonusMult = 1.0;
     rareUsed.clear();
+
+    setSpecialLevel(SPECIAL.NONE);
 
     resetSpawnPhase();
 
@@ -1768,9 +1904,10 @@ function tryDash(){
     ========================================================= */
   if (!running || paused || gameOver) return;
 
-    // v10B: No-dash quadrant (Bottom-Left)
-    if (playerInQuadrantBL()) return;
-const moving =
+  // v11 special level: NO DASH
+  if (specialLevel === SPECIAL.NO_DASH) return;
+
+    const moving =
      keys.has("arrowleft")||keys.has("a")||
      keys.has("arrowright")||keys.has("d")||
      keys.has("arrowup")||keys.has("w")||
@@ -1784,6 +1921,7 @@ const moving =
     player.invulnLeft = player.invulnDash;
     player.dashCdLeft = player.dashCooldown;
 
+    missionOnDash();
     spawnBurst(player.x, player.y, 22, 540);
 }
 
@@ -1801,7 +1939,10 @@ function doLevelUp(){
     Clears enemies, re-centers player, regenerates obstacles, opens perk choice.
     ========================================================= */
  level += 1;
- nextLevelAt += 500;
+ nextLevelAt += 1000;
+
+    // v11: roll special level event for this level
+    rollSpecialLevel();
 
     enemies.length = 0;
     resetSpawnPhase();
@@ -2068,36 +2209,49 @@ const ny = player.y + player.vy * dt;
 movePlayerWithCollision(nx, ny);
 
 // enemy spawns
-const cap = getMaxCap();
+    const cap = getMaxCap();
 
-// RED spawns from Level 1 onward
-redTimer += dt;
-while (redTimer >= RED_EVERY){
-  redTimer -= RED_EVERY;
-  if (enemies.length < cap) spawnEnemy(ENEMY_KIND.RED);
-}
+    // v11: special level override
+    if (specialLevel === SPECIAL.YELLOW_ONLY){
+      // Spawn only yellows (regardless of base level)
+      yelTimer += dt;
+      const YEL_SPECIAL_EVERY = 1.2;
+      while (yelTimer >= YEL_SPECIAL_EVERY){
+        yelTimer -= YEL_SPECIAL_EVERY;
+        if (enemies.length >= cap) ensureCapBeforeSpawning("YEL");
+        spawnEnemy(ENEMY_KIND.YEL);
+      }
+    } else {
+      // Normal spawn rules
+      // RED spawns from Level 1 onward
+      redTimer += dt;
+      while (redTimer >= RED_EVERY){
+        redTimer -= RED_EVERY;
+        if (enemies.length < cap) spawnEnemy(ENEMY_KIND.RED);
+      }
 
-// YEL spawns starting at Level 4
-if (level >= 4){
-  yelTimer += dt;
-  while (yelTimer >= YEL_EVERY){
-    yelTimer -= YEL_EVERY;
-    if (enemies.length >= cap) ensureCapBeforeSpawning("YEL");
-    spawnEnemy(ENEMY_KIND.YEL);
-  }
-}
+      // YEL spawns starting at Level 4
+      if (level >= 4){
+        yelTimer += dt;
+        while (yelTimer >= YEL_EVERY){
+          yelTimer -= YEL_EVERY;
+          if (enemies.length >= cap) ensureCapBeforeSpawning("YEL");
+          spawnEnemy(ENEMY_KIND.YEL);
+        }
+      }
 
-// VIO spawns starting at Level 8
-if (level >= 8){
-  vioTimer += dt;
-  while (vioTimer >= VIO_EVERY){
-    vioTimer -= VIO_EVERY;
-    if (enemies.length >= cap) ensureCapBeforeSpawning("VIO");
-    spawnEnemy(ENEMY_KIND.VIO);
-  }
-}
+      // VIO spawns starting at Level 8
+      if (level >= 8){
+        vioTimer += dt;
+        while (vioTimer >= VIO_EVERY){
+          vioTimer -= VIO_EVERY;
+          if (enemies.length >= cap) ensureCapBeforeSpawning("VIO");
+          spawnEnemy(ENEMY_KIND.VIO);
+        }
+      }
+    }
 
-// enemies move + collide with player
+    // enemies move + collide with player
 for (const e of enemies){
   // yellow sprint
   if (e.kind.key === "YEL"){
@@ -2257,7 +2411,24 @@ function drawBackground(){
    ctx.strokeStyle = "#22304a";
    ctx.stroke();
   }
-  ctx.globalAlpha = 1;
+  ctx.save();
+  // quadrant divider lines (world center)
+  ctx.globalAlpha = 0.35;
+  ctx.strokeStyle = "#4da3ff";
+  ctx.lineWidth = 3;
+  // vertical
+  ctx.beginPath();
+  ctx.moveTo(wx(WORLD_W/2), 0);
+  ctx.lineTo(wx(WORLD_W/2), VIEW_H);
+  ctx.stroke();
+  // horizontal
+  ctx.beginPath();
+  ctx.moveTo(0, wy(WORLD_H/2));
+  ctx.lineTo(VIEW_W, wy(WORLD_H/2));
+  ctx.stroke();
+  ctx.restore();
+
+ctx.globalAlpha = 1;
 
    // vignette
    const g = ctx.createRadialGradient(VIEW_W/2, VIEW_H/2, 200, VIEW_W/2, VIEW_H/2,
@@ -2269,24 +2440,29 @@ function drawBackground(){
 
   // world border (more visible)
   ctx.save();
+  const bx0 = wx(0), by0 = wy(0), bx1 = wx(WORLD_W), by1 = wy(WORLD_H);
+
+  // solid glow
   ctx.globalAlpha = 0.85;
   ctx.lineWidth = 6;
   ctx.strokeStyle = "#4da3ff";
-  ctx.strokeRect(wx(0), wy(0), WORLD_W, WORLD_H);
+  ctx.strokeRect(bx0, by0, bx1 - bx0, by1 - by0);
 
-    // v10: dashed high-contrast border
-    ctx.save();
-    ctx.globalAlpha = 0.55;
-    ctx.setLineDash([12, 10]);
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = '#e6edf3';
-    ctx.strokeRect(wx(0), wy(0), WORLD_W, WORLD_H);
-    ctx.setLineDash([]);
-    ctx.restore();
+  // dashed high-contrast
+  ctx.globalAlpha = 0.55;
+  ctx.setLineDash([12, 10]);
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = "#e6edf3";
+  ctx.strokeRect(bx0, by0, bx1 - bx0, by1 - by0);
+  ctx.setLineDash([]);
+
+  // thick outer hint
   ctx.globalAlpha = 0.20;
   ctx.lineWidth = 18;
   ctx.strokeStyle = "#4da3ff";
-  ctx.strokeRect(wx(0), wy(0), WORLD_W, WORLD_H);
+  ctx.strokeRect(bx0, by0, bx1 - bx0, by1 - by0);
+
+  ctx.restore();
   ctx.restore();
  }
 
@@ -2460,20 +2636,20 @@ function drawParticles(){
 
 
 function drawMinimap(){
-
-
- /* =========================================================
-    SECTION 25B) RENDER: MINIMAP
-    Local area minimap around player: obstacles/zone/orbs/enemies + ticks.
-    ========================================================= */
+  /* =========================================================
+     SECTION 25B) RENDER: MINIMAP
+     Local area minimap around player.
+     Shows: world border, quadrant lines, obstacles, zones, orbs, player.
+     ========================================================= */
   const cx = VIEW_W - 140;
   const cy = 140;
   const r = 110;
 
-  const worldRange = 1700; // v10: dezoomed minimap (shows more than view)
+  // Show LESS than the view (zoomed-in minimap)
+  // (view is 1600x900; half-diagonal ~900)
+  const worldRange = 900; // radius in world units shown on minimap
   const k = r / worldRange;
 
-  // frame + clip
   ctx.save();
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
@@ -2481,39 +2657,59 @@ function drawMinimap(){
   ctx.clip();
 
   // background
-  ctx.globalAlpha = 0.55;
+  ctx.globalAlpha = 0.70;
   ctx.fillStyle = "#0b1220";
   ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
   ctx.globalAlpha = 1;
 
-  // helper: world -> minimap
+  // world -> minimap
   const mx = (x) => cx + (x - player.x) * k;
   const my = (y) => cy + (y - player.y) * k;
 
-  // world borders + world center marker
+  // quadrant divider lines
   {
-    const x0 = mx(0),       y0 = my(0);
-    const x1 = mx(WORLD_W), y1 = my(WORLD_H);
-
-    // border rectangle (clipped by minimap circle)
     ctx.save();
-    ctx.globalAlpha = 0.9;
-    ctx.strokeStyle = "rgba(230,237,243,0.9)";
+    ctx.globalAlpha = 0.65;
+    ctx.strokeStyle = "#4da3ff";
     ctx.lineWidth = 2;
-    ctx.strokeRect(x0, y0, x1 - x0, y1 - y0);
-    ctx.restore();
 
-    // world center
-    const ccx = mx(WORLD_W / 2);
-    const ccy = my(WORLD_H / 2);
+    // vertical mid line
+    const vx = mx(WORLD_W/2);
     ctx.beginPath();
-    ctx.arc(ccx, ccy, 3.2, 0, Math.PI * 2);
-    ctx.fillStyle = "#ffd34d";
-    ctx.fill();
+    ctx.moveTo(vx, cy - r);
+    ctx.lineTo(vx, cy + r);
+    ctx.stroke();
+
+    // horizontal mid line
+    const hy = my(WORLD_H/2);
+    ctx.beginPath();
+    ctx.moveTo(cx - r, hy);
+    ctx.lineTo(cx + r, hy);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  // world borders (draw as 4 lines; works even when mostly off-range)
+  {
+    ctx.save();
+    ctx.globalAlpha = 0.95;
+    ctx.strokeStyle = "#e6edf3";
+    ctx.lineWidth = 2.5;
+
+    const xL = mx(0), xR = mx(WORLD_W);
+    const yT = my(0), yB = my(WORLD_H);
+
+    ctx.beginPath(); ctx.moveTo(xL, yT); ctx.lineTo(xR, yT); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(xL, yB); ctx.lineTo(xR, yB); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(xL, yT); ctx.lineTo(xL, yB); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(xR, yT); ctx.lineTo(xR, yB); ctx.stroke();
+
+    ctx.restore();
   }
 
   // obstacles
-  ctx.globalAlpha = 0.75;
+  ctx.globalAlpha = 0.80;
   ctx.fillStyle = "#15233a";
   ctx.strokeStyle = "#2b3f63";
   ctx.lineWidth = 1;
@@ -2522,28 +2718,33 @@ function drawMinimap(){
     const y = my(ob.y);
     const w = ob.w * k;
     const h = ob.h * k;
-    // skip if far outside
     if (x + w < cx - r || x > cx + r || y + h < cy - r || y > cy + r) continue;
     ctx.fillRect(x, y, w, h);
     ctx.strokeRect(x, y, w, h);
   }
   ctx.globalAlpha = 1;
 
-  // zone
-  if (zone.active){
-    ctx.globalAlpha = 0.30;
-    ctx.fillStyle = "#62ffbf";
+  // zones (all)
+  function miniCircle(z, fill){
+    const x = mx(z.x), y = my(z.y);
+    if (Math.hypot(x - cx, y - cy) > r + 40) return;
+    ctx.globalAlpha = 0.22;
+    ctx.fillStyle = fill;
     ctx.beginPath();
-    ctx.arc(mx(zone.x), my(zone.y), zone.r * k, 0, Math.PI * 2);
+    ctx.arc(x, y, z.r * k, 0, Math.PI*2);
     ctx.fill();
     ctx.globalAlpha = 1;
   }
 
+  for (const z of ZONES.swamp)       miniCircle(z, "#3df9a8");
+  for (const z of ZONES.speedPlayer) miniCircle(z, "#6ee7ff");
+  for (const z of ZONES.speedEnemy)  miniCircle(z, "#ff5b5b");
+  for (const z of ZONES.exp)         miniCircle(z, "#ffd34d");
+
   // orbs
   for (const o of orbs){
     const x = mx(o.x), y = my(o.y);
-    if (Math.hypot(x - cx, y - cy) > r + 8) continue;
-
+    if (Math.hypot(x - cx, y - cy) > r + 10) continue;
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(0.8);
@@ -2559,9 +2760,7 @@ function drawMinimap(){
     ctx.restore();
   }
 
-  // enemies intentionally NOT shown on minimap (v10 request)
-
-  // player (always center)
+  // player (center)
   ctx.beginPath();
   ctx.arc(cx, cy, 4.2, 0, Math.PI * 2);
   ctx.fillStyle = "#6ee7ff";
@@ -2569,29 +2768,17 @@ function drawMinimap(){
 
   ctx.restore();
 
-  // ring + heading ticks
+  // ring
   ctx.save();
   ctx.globalAlpha = 0.95;
   ctx.lineWidth = 3;
-  ctx.strokeStyle = "#35507e";
+  ctx.strokeStyle = "#22304a";
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.stroke();
-
-  ctx.globalAlpha = 0.55;
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.moveTo(cx, cy - r);
-  ctx.lineTo(cx, cy - r + 10);
-  ctx.moveTo(cx + r, cy);
-  ctx.lineTo(cx + r - 10, cy);
-  ctx.moveTo(cx, cy + r);
-  ctx.lineTo(cx, cy + r - 10);
-  ctx.moveTo(cx - r, cy);
-  ctx.lineTo(cx - r + 10, cy);
-  ctx.stroke();
   ctx.restore();
 }
+
 
 function drawOverlayText(){
  ctx.textAlign = "center";
@@ -2632,7 +2819,53 @@ VIEW_H/2 + 12);
    }
  }
 
- function draw(){
+ 
+
+  /* =========================================================
+     SECTION 24D) QUADRANT OVERLAY (v11)
+     Grid lines + quadrant labels, visible in world and minimap.
+     ========================================================= */
+  function drawQuadrantOverlay(){
+    const midX = WORLD_W / 2;
+    const midY = WORLD_H / 2;
+
+    // grid lines
+    ctx.globalAlpha = 0.22;
+    ctx.strokeStyle = "#22304a";
+    ctx.lineWidth = 3;
+
+    // vertical
+    ctx.beginPath();
+    ctx.moveTo(wx(midX), 0);
+    ctx.lineTo(wx(midX), VIEW_H);
+    ctx.stroke();
+
+    // horizontal
+    ctx.beginPath();
+    ctx.moveTo(0, wy(midY));
+    ctx.lineTo(VIEW_W, wy(midY));
+    ctx.stroke();
+
+    // labels
+    ctx.globalAlpha = 0.22;
+    ctx.fillStyle = "#e6edf3";
+    ctx.font = "900 28px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+    ctx.textAlign = "center";
+
+    const centers = {
+      TL: {x: midX/2, y: midY/2, t:"SWAMP"},
+      TR: {x: midX + midX/2, y: midY/2, t:"WALLS"},
+      BL: {x: midX/2, y: midY + midY/2, t:"EXP"},
+      BR: {x: midX + midX/2, y: midY + midY/2, t:"SPEED"},
+    };
+
+    for (const k in centers){
+      const c = centers[k];
+      ctx.fillText(c.t, wx(c.x), wy(c.y));
+    }
+  }
+
+function draw(){
 
 
  /* =========================================================
@@ -2686,4 +2919,3 @@ VIEW_H/2 + 12);
 </script>
 </body>
 </html>
-
