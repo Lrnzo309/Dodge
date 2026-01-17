@@ -1,0 +1,2689 @@
+<!doctype html>
+<html lang="en">
+<head>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1" />
+ <title>Dodge / Survivor (v9)</title>
+
+ <style>
+  html, body{
+    height:100%;
+    margin:0;
+    background:#0b0f14;
+    color:#e6edf3;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
+    overflow:hidden;
+  }
+
+  .wrap{
+    height:100%;
+    width:100%;
+    display:grid;
+    grid-template-columns: 300px 1fr;
+    gap:8px;
+    box-sizing:border-box;
+    padding:8px;
+  }
+
+  .panel{
+      background: linear-gradient(180deg, #0e1420 0%, #0b1220 100%);
+    border:1px solid #22304a;
+    border-radius:16px;
+    padding:12px;
+    box-sizing:border-box;
+    overflow:auto;
+  }
+
+  .title{
+      font-weight:900;
+      color:#bcd2ff;
+    letter-spacing:.3px;
+    margin:0 0 8px 0;
+    font-size:16px;
+    opacity:.95;
+  }
+.small{
+  font-size:13px;
+  opacity:.85;
+  line-height:1.35;
+}
+
+.kbd{
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  border:1px solid #22304a;
+  background:#111826;
+  padding:1px 6px;
+  border-radius:6px;
+  opacity:.95;
+  display:inline-block;
+}
+
+.pill{
+      background: linear-gradient(180deg, rgba(17,24,38,1) 0%, rgba(10,16,26,1) 100%);
+  border:1px solid #22304a;
+  padding:6px 10px;
+  border-radius:999px;
+  font-size:13px;
+  opacity:.95;
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  white-space:nowrap;
+}
+
+.row{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  margin-top:10px;
+}
+
+.statGrid{
+  display:grid;
+  grid-template-columns: 1fr;
+  gap:8px;
+  margin-top:8px;
+}
+
+.statItem{
+
+ background:#0b1220;
+ border:1px solid #22304a;
+ border-radius:14px;
+ padding:10px 10px;
+ display:flex;
+ justify-content:space-between;
+ gap:10px;
+ font-size:13px;
+ opacity:.95;
+}
+.statItem b{ opacity:.95; }
+.muted{ opacity:.75; }
+
+/* ===== Game wrapper (no stretch) ===== */
+.gameWrap{
+  position:relative;
+  background:#070a0f;
+  border:1px solid #22304a;
+  border-radius:16px;
+  overflow:hidden;
+  display:grid;
+  place-items:center;
+}
+
+canvas{
+  display:block;
+  width:100%;
+  height:100%;
+}
+
+/* HUD overlay inside the field */
+.hudOverlay{
+  position:absolute;
+  top:10px;
+  left:10px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  z-index:10;
+  pointer-events:none;
+}
+
+/* Perk choice overlay */
+.choiceOverlay{
+
+    position:fixed;
+    inset:0;
+    display:none;
+    place-items:center;
+    background: rgba(0,0,0,.55);
+    z-index:999;
+}
+
+.choiceCard{
+  width:min(920px, 94vw);
+  background:#0e1420;
+  border:1px solid #22304a;
+  border-radius:18px;
+  padding:14px;
+  box-sizing:border-box;
+}
+
+.choiceTop{
+  display:flex;
+  justify-content:space-between;
+  align-items:baseline;
+  gap:12px;
+  margin-bottom:10px;
+}
+
+.choiceTitle{
+  font-weight:900;
+  letter-spacing:.3px;
+  font-size:18px;
+}
+
+.choiceSub{
+  font-size:13px;
+  opacity:.85;
+}
+
+.cards{
+  display:grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap:10px;
+}
+
+.buffCard{
+ background:#0b1220;
+
+    border:1px solid #22304a;
+    border-radius:16px;
+    padding:12px;
+    cursor:pointer;
+    user-select:none;
+    transition: transform .08s ease, border-color .08s ease;
+    min-height: 96px;
+}
+
+.buffCard:hover{
+  transform: translateY(-2px);
+  border-color:#35507e;
+}
+
+.buffName{
+  font-weight:900;
+  margin-bottom:6px;
+  font-size:15px;
+}
+
+.buffMeta{
+  font-size:12px;
+  opacity:.82;
+  line-height:1.35;
+}
+
+.rareBadge{
+  display:inline-block;
+  margin-left:8px;
+  padding:2px 8px;
+  border-radius:999px;
+  font-size:11px;
+  border:1px solid #5d4bb3;
+  background: rgba(167,139,250,.12);
+  color:#d9d2ff;
+  vertical-align:middle;
+}
+
+.riskBadge{
+  display:inline-block;
+  margin-left:8px;
+  padding:2px 8px;
+  border-radius:999px;
+  font-size:11px;
+
+      border:1px solid #b35d4b;
+      background: rgba(255,91,91,.10);
+      color:#ffd4d4;
+      vertical-align:middle;
+  }
+
+  /* ================================
+     v10 FIX: Left panel improvements
+     - mission progress bar
+     - a bit more color accents
+     ================================ */
+  .panel{
+    background: linear-gradient(180deg, rgba(14,20,32,1) 0%, rgba(11,18,32,1) 100%);
+  }
+
+  .title{ color:#eaf2ff; }
+
+  .pill{
+    background: rgba(17,24,38,.9);
+    border-color:#2a3a5c;
+  }
+
+  .missionBarWrap{
+    margin-top:8px;
+    height:10px;
+    background:#0b1220;
+    border:1px solid #22304a;
+    border-radius:999px;
+    overflow:hidden;
+  }
+
+  .missionBar{
+    height:100%;
+    width:0%;
+    background: linear-gradient(90deg, rgba(61,249,168,0.95), rgba(167,139,250,0.95));
+  }
+
+  @media (max-width: 980px){
+    .wrap{
+      grid-template-columns: 1fr;
+      grid-template-rows: auto 1fr;
+    }
+    .panel{ max-height: 40vh; }
+    .cards{ grid-template-columns: 1fr; }
+  }
+ </style>
+</head>
+
+<body>
+ <div class="wrap">
+  <div class="panel">
+<div class="row">
+       <div class="title">Run</div>
+       <div class="pill" id="levelPill">Level: 1</div>
+       <div class="pill" id="bestScorePill">Best score: 0</div>
+       <div class="pill" id="bestLevelPill">Best level: 1</div>
+      </div>
+      <div class="row" id="missionRow">
+       <div class="title">Mission</div>
+       <div class="small muted" id="missionPill">Mission: —</div>
+       <div class="missionBarWrap">
+        <div class="missionBar" id="missionBar"></div>
+       </div>
+      </div>
+
+
+      <div class="row">
+       <div class="title">Stats</div>
+       <div class="small muted">Shows your bonuses vs base (Base / +X / -X).</div>
+
+     <div class="statGrid">
+      <div class="statItem"><b>Speed</b><span id="statSpeed"
+class="muted">Base</span></div>
+      <div class="statItem"><b>Dash speed</b><span id="statDashSpeed"
+class="muted">Base</span></div>
+
+      <div class="statItem"><b>Dash cooldown</b><span id="statDashCd"
+class="muted">Base</span></div>
+      <div class="statItem"><b>Radius</b><span id="statRadius"
+class="muted">Base</span></div>
+      <div class="statItem"><b>Level bonus</b><span id="statLevelBonus"
+class="muted">Base</span></div>
+     </div>
+    </div>
+</div>
+
+  <div class="gameWrap" id="gameWrap">
+   <div class="hudOverlay">
+    <div class="pill" id="hudLevelPill">Level: 1</div>
+    <div class="pill" id="scorePill">Score: 0</div>
+    <div class="pill" id="livesPill">Lives: 1</div>
+    <div class="pill" id="dashPill">Dash: Ready</div>
+</div>
+
+   <canvas id="c" width="1600" height="900"></canvas>
+  </div>
+ </div>
+
+ <div class="choiceOverlay" id="choiceOverlay">
+  <div class="choiceCard">
+   <div class="choiceTop">
+     <div>
+      <div class="choiceTitle">CHOOSE A PERK</div>
+      <div class="choiceSub">Level up! Pick 1 of the 3 options.</div>
+     </div>
+     <div class="choiceSub" id="choiceInfo">—</div>
+   </div>
+
+   <div class="cards">
+    <div class="buffCard" id="opt0">
+     <div class="buffName" id="opt0Name">—</div>
+     <div class="buffMeta" id="opt0Desc">—</div>
+
+     </div>
+     <div class="buffCard" id="opt1">
+      <div class="buffName" id="opt1Name">—</div>
+      <div class="buffMeta" id="opt1Desc">—</div>
+     </div>
+     <div class="buffCard" id="opt2">
+      <div class="buffName" id="opt2Name">—</div>
+      <div class="buffMeta" id="opt2Desc">—</div>
+     </div>
+    </div>
+
+    <div class="small" style="margin-top:10px; opacity:.8;">
+     Click a card (or press <span class="kbd">1</span> <span class="kbd">2</span> <span
+class="kbd">3</span>)
+    </div>
+   </div>
+ </div>
+
+<script>
+(() => {
+  "use strict";
+
+ /* =========================================================
+    SECTION 1) UTILITIES
+    Small helper functions used everywhere.
+    ========================================================= */
+ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+ const rand = (a, b) => a + Math.random() * (b - a);
+ const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+
+ /* =========================================================
+    SECTION 1A) NUMBER + TEXT FORMATTING
+    Formatting helpers for HUD / stat deltas.
+    ========================================================= */
+
+ function signFmt(n){
+   if (Math.abs(n) < 1e-9) return "Base";
+   return (n > 0 ? `+${fmt(n)}` : `${fmt(n)}`);
+ }
+ function fmt(n){
+   const isInt = Math.abs(n - Math.round(n)) < 1e-9;
+   return isInt ? String(Math.round(n)) : n.toFixed(2);
+ }
+
+ /* =========================================================
+    SECTION 2) DOM / UI REFERENCES
+    All UI elements we update in realtime.
+    ========================================================= */
+ const canvas = document.getElementById("c");
+
+ const ctx = canvas.getContext("2d");
+ const gameWrap = document.getElementById("gameWrap");
+
+ const hudLevelPill = document.getElementById("hudLevelPill");
+  const scorePill = document.getElementById("scorePill");
+ const livesPill = document.getElementById("livesPill");
+ const dashPill       = document.getElementById("dashPill");
+  const missionPill    = document.getElementById("missionPill");
+  const missionBar = document.getElementById("missionBar");
+
+ const levelPill = document.getElementById("levelPill");
+ const bestScorePill = document.getElementById("bestScorePill");
+ const bestLevelPill = document.getElementById("bestLevelPill");
+
+ const statSpeed = document.getElementById("statSpeed");
+ const statDashSpeed = document.getElementById("statDashSpeed");
+ const statDashCd = document.getElementById("statDashCd");
+ const statRadius = document.getElementById("statRadius");
+ const statLevelBonus= document.getElementById("statLevelBonus");
+
+ const choiceOverlay = document.getElementById("choiceOverlay");
+ const choiceInfo = document.getElementById("choiceInfo");
+
+ const optEls = [
+
+
+ /* =========================================================
+    SECTION 2A) PERK CHOICE CARD REFERENCES
+    DOM refs for the 3 perk cards (name/desc/root).
+    ========================================================= */
+   { root: document.getElementById("opt0"), name: document.getElementById("opt0Name"),
+desc: document.getElementById("opt0Desc") },
+   { root: document.getElementById("opt1"), name: document.getElementById("opt1Name"),
+desc: document.getElementById("opt1Desc") },
+   { root: document.getElementById("opt2"), name: document.getElementById("opt2Name"),
+desc: document.getElementById("opt2Desc") },
+ ];
+
+ /* =========================================================
+    SECTION 3) CANVAS FIT (NO STRETCH)
+    Keep aspect ratio so circles stay circles.
+    ========================================================= */
+ function fitCanvasToWrapper() {
+   const rect = gameWrap.getBoundingClientRect();
+   const scale = Math.min(rect.width / canvas.width, rect.height / canvas.height);
+   canvas.style.width = Math.floor(canvas.width * scale) + "px";
+   canvas.style.height = Math.floor(canvas.height * scale) + "px";
+ }
+ window.addEventListener("resize", fitCanvasToWrapper);
+ fitCanvasToWrapper();
+
+
+ /* =========================================================
+    SECTION 3A) RESIZE HOOK
+    Window resize binding for the no-stretch canvas fit.
+    ========================================================= */
+
+ /* =========================================================
+    SECTION 4) BEST (PERSISTENT)
+
+  Save best score and best level across runs.
+  ========================================================= */
+const BEST_SCORE_KEY = "dodge_best_score_v3";
+const BEST_LEVEL_KEY = "dodge_best_level_v3";
+let bestScore = Number(localStorage.getItem(BEST_SCORE_KEY) || "0");
+let bestLevel = Number(localStorage.getItem(BEST_LEVEL_KEY) || "1");
+bestScorePill.textContent = `Best score: ${bestScore}`;
+bestLevelPill.textContent = `Best level: ${bestLevel}`;
+
+
+ /* =========================================================
+    SECTION 4A) LOCAL STORAGE I/O
+    Keys + load + save for best score/level.
+    ========================================================= */
+
+/* =========================================================
+   SECTION 5) VIEW / WORLD
+   Big world, camera follows player.
+   ========================================================= */
+const VIEW_W = canvas.width;
+const VIEW_H = canvas.height;
+
+const WORLD_W = 6400;
+const WORLD_H = 3600;
+
+
+// Zoom: < 1 = zoomed out (see more of the world)
+const ZOOM = 0.7;
+function clampWorldX(x, r){ return clamp(x, r, WORLD_W - r); }
+function clampWorldY(y, r){ return clamp(y, r, WORLD_H - r); }
+
+const camera = { x: 0, y: 0 };
+function updateCamera(player){
+  const viewW = VIEW_W / ZOOM;
+  const viewH = VIEW_H / ZOOM;
+  camera.x = clamp(player.x - viewW / 2, 0, WORLD_W - viewW);
+  camera.y = clamp(player.y - viewH / 2, 0, WORLD_H - viewH);
+}
+const wx = (x) => (x - camera.x) * ZOOM;
+const wy = (y) => (y - camera.y) * ZOOM;
+
+
+ /* =========================================================
+    SECTION 5A) CAMERA HELPERS
+    World->view conversion helpers and clamping.
+    ========================================================= */
+
+/* =========================================================
+   SECTION 6) GAME STATE
+   Running / Paused / GameOver and progression.
+   ========================================================= */
+let running = false;
+let paused = false;
+let gameOver= false;
+
+let level = 1;
+let score = 0;
+let nextLevelAt = 500;
+
+
+ /* =========================================================
+    SECTION 6A) PROGRESSION THRESHOLDS
+    Score threshold that triggers level-up / perk choice.
+    ========================================================= */
+
+/* =========================================================
+   SECTION 7) PLAYER (BASE STATS)
+
+   Base values (your fixed spec).
+   ========================================================= */
+const BASE = {
+
+
+ /* =========================================================
+    SECTION 7A) BASE CONSTANTS
+    The immutable baseline used for stat deltas in UI.
+    ========================================================= */
+  r: 20,
+  speed: 450,
+  dashSpeed: 1000,
+  dashDuration: 0.5,
+  dashCooldown: 5.0,
+  dashInvuln: 0.6,
+};
+
+  // v10B: pickup aura (for orbs + zones only; does NOT affect enemy collision)
+  const PICKUP_AURA = 25;
+
+
+const player = {
+ x: WORLD_W/2, y: WORLD_H/2,
+ r: BASE.r,
+ baseSpeed: BASE.speed,
+ vx: 0, vy: 0,
+
+ dashSpeed: BASE.dashSpeed,
+ dashDuration: BASE.dashDuration,
+ dashCooldown: BASE.dashCooldown,
+
+ dashTimeLeft: 0,
+ dashCdLeft: 0,
+
+ invulnDash: BASE.dashInvuln,
+ invulnLeft: 0,
+
+  lives: 1,
+};
+
+
+ /* =========================================================
+    SECTION 7B) PLAYER RUNTIME STATE
+    Mutable player state for a single run (position, timers, lives).
+    ========================================================= */
+
+/* =========================================================
+   SECTION 8) ENEMY TYPES + AI MODES
+   Red = random-ish, Yellow = shortest, Purple = commit longer.
+   ========================================================= */
+const ENEMY_KIND = {
+
+
+ /* =========================================================
+    SECTION 8A) ENEMY DEFINITIONS
+    Colors + points/sec per enemy kind.
+    ========================================================= */
+  RED: { key:"RED", color:"#ff5b5b", pps: 5 },
+  YEL: { key:"YEL", color:"#ffd34d", pps: 12.5 },
+  VIO: { key:"VIO", color:"#a78bfa", pps: 25 },
+};
+const enemies = [];
+
+function enemyBaseSpeed(kindKey, lv){
+  if (kindKey === "RED") return 200 + 15 * (lv - 1);
+  if (kindKey === "YEL") return 300 + 20 * Math.max(0, lv - 4);
+  if (kindKey === "VIO") return 150 + 50 * Math.max(0, lv - 8);
+  return 200;
+}
+
+
+ /* =========================================================
+    SECTION 8B) ENEMY DIFFICULTY SCALING
+    Base speed scaling by enemy kind and level.
+    ========================================================= */
+
+/* =========================================================
+   SECTION 9) OBSTACLES (2 PER LEVEL, NOT OVERLAPPING)
+   Stored for the entire run, reset on death.
+   ========================================================= */
+const obstacles = [];
+const OB_MIN_GAP = 22; // spacing so they don't overlap
+const OB_CORNER = 16; // rounded corners (visual)
+const OB_PAD = 6; // collision padding
+
+
+ /* =========================================================
+    SECTION 9A) RECT OVERLAP UTIL
+    Overlap test used to keep obstacles spaced.
+    ========================================================= */
+
+function rectsOverlap(a, b, pad=0){
+  return !(
+    a.x + a.w + pad < b.x ||
+    a.x > b.x + b.w + pad ||
+    a.y + a.h + pad < b.y ||
+    a.y > b.y + b.h + pad
+  );
+}
+
+
+function addObstacleNonOverlapping(bounds = null) {
+
+  /* =========================================================
+     SECTION 9B) OBSTACLE SPAWNING
+     Random obstacle generation with retries + safe spawn distance.
+     Optional bounds let us restrict spawning to a map quadrant.
+     ========================================================= */
+  const tries = 180;
+
+  // default: whole world (with margin)
+  const margin = 120;
+  const b = bounds || { 
+    minX: margin, 
+    maxX: WORLD_W - margin, 
+    minY: margin, 
+    maxY: WORLD_H - margin 
+  };
+
+  for (let t = 0; t < tries; t++) {
+    const w = rand(90, 220);
+    const h = rand(70, 200);
+
+    const x = rand(b.minX, b.maxX - w);
+    const y = rand(b.minY, b.maxY - h);
+
+    const r = { x, y, w, h, corner: OB_CORNER };
+
+    // avoid spawning too close to player start zone
+    const cx = x + w/2, cy = y + h/2;
+    const dx = cx - player.x, dy = cy - player.y;
+    if (dx*dx + dy*dy < (260*260)) continue;
+
+    let ok = true;
+    for (const o of obstacles) {
+      if (rectsOverlap(r, o, OB_MIN_GAP)) { ok = false; break; }
+    }
+    if (!ok) continue;
+
+    obstacles.push(r);
+    return true;
+  }
+  return false;
+}
+
+
+
+function addObstacleNonOverlapping(bounds = null) {
+
+  /* =========================================================
+     SECTION 9B) OBSTACLE SPAWNING
+     Random obstacle generation with retries + safe spawn distance.
+     Optional bounds let us restrict spawning to a map quadrant.
+     ========================================================= */
+  const tries = 180;
+
+  // default: whole world (with margin)
+  const margin = 120;
+  const b = bounds || { 
+    minX: margin, 
+    maxX: WORLD_W - margin, 
+    minY: margin, 
+    maxY: WORLD_H - margin 
+  };
+
+  for (let t = 0; t < tries; t++) {
+    const w = rand(90, 220);
+    const h = rand(70, 200);
+
+    const x = rand(b.minX, b.maxX - w);
+    const y = rand(b.minY, b.maxY - h);
+
+    const r = { x, y, w, h, corner: OB_CORNER };
+
+    // avoid spawning too close to player start zone
+    const cx = x + w/2, cy = y + h/2;
+    const dx = cx - player.x, dy = cy - player.y;
+    if (dx*dx + dy*dy < (260*260)) continue;
+
+    let ok = true;
+    for (const o of obstacles) {
+      if (rectsOverlap(r, o, OB_MIN_GAP)) { ok = false; break; }
+    }
+    if (!ok) continue;
+
+    obstacles.push(r);
+    return true;
+  }
+  return false;
+}
+
+
+ function addObstaclesForLevel(lv){
+
+  /* =========================================================
+     SECTION 9C) OBSTACLES PER LEVEL (v10B ZONED MAP)
+     Walls live ONLY in the Top-Right quadrant and ACCUMULATE.
+     They do NOT reset on level-up; only on full run reset.
+     Rule: +2 walls each level ("round").
+     ========================================================= */
+  const midX = WORLD_W / 2;
+  const midY = WORLD_H / 2;
+
+  // Top-Right quadrant bounds (with margins)
+  const bounds = {
+    minX: midX + 120,
+    maxX: WORLD_W - 120,
+    minY: 120,
+    maxY: midY - 120
+  };
+
+  const count = 2;
+  for (let i = 0; i < count; i++){
+    addObstacleNonOverlapping(bounds);
+  }
+}
+
+
+function circleRectCollide(cx, cy, cr, rx, ry, rw, rh){
+
+
+ /* =========================================================
+    SECTION 9D) COLLISION PRIMITIVES
+    Circle-vs-rect collision used by player/enemy and orb/zone spawning.
+    ========================================================= */
+   const px = clamp(cx, rx, rx + rw);
+   const py = clamp(cy, ry, ry + rh);
+   const dx = cx - px;
+   const dy = cy - py;
+   return (dx*dx + dy*dy) <= (cr*cr);
+ }
+
+ function isCircleInsideAnyObstacle(x, y, r){
+
+
+ /* =========================================================
+    SECTION 9E) OBSTACLE QUERY
+    Checks if a circle overlaps any obstacle (with padding).
+    ========================================================= */
+   for (const o of obstacles) {
+     if (circleRectCollide(x, y, r, o.x - OB_PAD, o.y - OB_PAD, o.w + OB_PAD*2, o.h +
+OB_PAD*2)) return true;
+   }
+   return false;
+ }
+
+ /* =========================================================
+    SECTION 10) PLAYER MOVEMENT + COLLISION (NO TREMBLING)
+    We do axis-separated movement: try X, then Y. If collides, cancel that axis.
+    ========================================================= */
+ function moveCircleWithCollision(ent, nx, ny){
+
+
+ /* =========================================================
+    SECTION 10A) SUB-STEPPED MOVEMENT
+    Sub-stepping to avoid tunneling at high speeds (dash).
+    ========================================================= */
+  const dx = nx - ent.x;
+  const dy = ny - ent.y;
+  const maxD = Math.max(Math.abs(dx), Math.abs(dy));
+
+  // Sub-step to avoid tunneling at high speeds (dash / sprint)
+  const stepSize = Math.max(4, ent.r * 0.5);
+  const steps = Math.max(1, Math.ceil(maxD / stepSize));
+
+  let x = ent.x;
+  let y = ent.y;
+
+  for (let i = 0; i < steps; i++){
+    const t = (i + 1) / steps;
+    const tx = ent.x + dx * t;
+    const ty = ent.y + dy * t;
+
+    // X axis
+    const tryX = clampWorldX(tx, ent.r);
+    if (!isCircleInsideAnyObstacle(tryX, y, ent.r)) x = tryX;
+
+    // Y axis
+    const tryY = clampWorldY(ty, ent.r);
+    if (!isCircleInsideAnyObstacle(x, tryY, ent.r)) y = tryY;
+  }
+
+  ent.x = x;
+  ent.y = y;
+}
+
+function movePlayerWithCollision(nx, ny){
+  moveCircleWithCollision(player, nx, ny);
+}
+
+
+ /* =========================================================
+    SECTION 10B) PLAYER MOVE WRAPPER
+    Thin wrapper so player and enemies share the same collision code.
+    ========================================================= */
+
+ /* =========================================================
+    SECTION 11) ORBS (SPAWN NOT INSIDE OBSTACLES)
+
+   Timers pause automatically because update() stops on paused.
+   ========================================================= */
+ const orbs = [];
+ let orbTimer = 0;
+ let nextOrbIn = rand(3, 7);
+
+
+ /* =========================================================
+    SECTION 11A) ORB SPAWN POINT
+    Finds a free point not inside obstacles and not too close to player.
+    ========================================================= */
+
+ function findFreePoint(radius, tries=140){
+
+  /* =========================================================
+     SECTION 11A) ORB SPAWN POINT (v10B ZONED MAP)
+     Orbs spawn ONLY in the Top-Left "Swamp" quadrant.
+     ========================================================= */
+  const midX = WORLD_W / 2;
+  const midY = WORLD_H / 2;
+
+  // Top-Left quadrant bounds
+  const minX = 70;
+  const maxX = midX - 70;
+  const minY = 70;
+  const maxY = midY - 70;
+
+  for (let t=0; t<tries; t++){
+    const x = rand(minX, maxX);
+    const y = rand(minY, maxY);
+    if (isCircleInsideAnyObstacle(x, y, radius)) continue;
+
+    // avoid spawning too close to player
+    const dx = x - player.x, dy = y - player.y;
+    if (dx*dx + dy*dy < (120*120)) continue;
+
+    return {x,y};
+  }
+
+  // fallback: clamp inside TL
+  return { 
+    x: clamp(player.x, minX, maxX),
+    y: clamp(player.y, minY, maxY)
+  };
+}
+
+
+
+ function spawnOrb(){
+
+
+ /* =========================================================
+    SECTION 11B) ORB FACTORY
+    Creates normal/rare orbs with size + value.
+    ========================================================= */
+  const isRare = (Math.random() < 0.25);
+  const r = isRare ? 16 : 12;
+
+     const p = findFreePoint(r);
+     const orb = {
+       x: p.x, y: p.y,
+       r,
+       value: isRare ? 50 : 25,
+       rare: isRare,
+       t: 0,
+     };
+
+     if (orbs.length >= 3) orbs.shift();
+     orbs.push(orb);
+ }
+
+ function updateOrbs(dt){
+
+
+ /* =========================================================
+    SECTION 11C) ORB TIMERS
+    Handles spawn timer and per-orb animation time.
+    ========================================================= */
+  orbTimer += dt;
+  if (orbTimer >= nextOrbIn){
+    orbTimer = 0;
+
+     nextOrbIn = rand(3, 7);
+     spawnOrb();
+    }
+    for (const o of orbs) o.t += dt;
+}
+
+function tryCollectOrbs(){
+
+
+ /* =========================================================
+    SECTION 11D) ORB COLLECTION
+    Collision check + scoring + mission hooks.
+    ========================================================= */
+  for (let i = orbs.length - 1; i >= 0; i--){
+    const o = orbs[i];
+    const dx = player.x - o.x;
+    const dy = player.y - o.y;
+    const rr = player.r + PICKUP_AURA + o.r;
+    if ((dx*dx + dy*dy) <= rr*rr){
+      score += o.value * levelBonusMult * scoreExpZoneMult();
+      orbs.splice(i, 1);
+      missionOnOrbCollected();
+    }
+  }
+}
+
+
+/* =========================================================
+   SECTION 12) MAP ZONES (v10B: 4 QUADRANTS)
+   We split the world into 4 quadrants with different mechanics:
+
+   TL (Top-Left)  : "Swamp" — Orbs spawn ONLY here. Also spawns slow zones (1/level, max 7).
+                   Slow zones apply -10% speed to BOTH player and enemies while inside.
+
+   TR (Top-Right) : "Walls" — Obstacles spawn ONLY here and accumulate (+2 walls each level).
+
+   BR (Bottom-Right): "Speed Fields" — spawns 2 zone types (1/level each, max 5 each):
+                      - Player speed +10%
+                      - Enemy speed +10%
+                      These zones may overlap.
+
+   BL (Bottom-Left): "No-Dash" — player cannot dash anywhere in this quadrant.
+                     Also spawns EXP zones (+10% score) (1/level, max 7).
+                     EXP zones affect: enemy score/sec + orb pickups. (Not missions.)
+   NOTE: These zones are persistent objects; no timed despawn for now.
+   ========================================================= */
+
+const ZONES = {
+  swamp: [],       // {x,y,r}
+  speedPlayer: [], // {x,y,r}
+  speedEnemy: [],  // {x,y,r}
+  exp: [],         // {x,y,r}
+};
+
+const ZONE_LIMITS = {
+  swamp: 7,
+  speedPlayer: 5,
+  speedEnemy: 5,
+  exp: 7,
+};
+
+// zone radii (tuned to feel meaningful on a big map)
+const ZONE_R = {
+  swamp: () => rand(140, 220),
+  speed: () => rand(130, 210),
+  exp:   () => rand(140, 240),
+};
+
+function midX(){ return WORLD_W / 2; }
+function midY(){ return WORLD_H / 2; }
+
+function inTL(x,y){ return x < midX() && y < midY(); }
+function inTR(x,y){ return x >= midX() && y < midY(); }
+function inBL(x,y){ return x < midX() && y >= midY(); }
+function inBR(x,y){ return x >= midX() && y >= midY(); }
+
+function inCircleAura(px, py, zx, zy, zr){
+  const dx = px - zx, dy = py - zy;
+  const rr = (zr + PICKUP_AURA);
+  return (dx*dx + dy*dy) <= rr*rr;
+}
+
+function randomPointInQuadrant(q){
+  const margin = 90;
+  const mx = midX(), my = midY();
+
+  let minX=margin, maxX=WORLD_W-margin, minY=margin, maxY=WORLD_H-margin;
+
+  if (q === "TL"){ minX=margin; maxX=mx-margin; minY=margin; maxY=my-margin; }
+  if (q === "TR"){ minX=mx+margin; maxX=WORLD_W-margin; minY=margin; maxY=my-margin; }
+  if (q === "BL"){ minX=margin; maxX=mx-margin; minY=my+margin; maxY=WORLD_H-margin; }
+  if (q === "BR"){ minX=mx+margin; maxX=WORLD_W-margin; minY=my+margin; maxY=WORLD_H-margin; }
+
+  return { x: rand(minX, maxX), y: rand(minY, maxY) };
+}
+
+function spawnZone(list, limit, rFn, quadrant){
+  // try a few times to avoid obstacles
+  for (let t=0; t<120; t++){
+    const p = randomPointInQuadrant(quadrant);
+    const r = rFn();
+    if (isCircleInsideAnyObstacle(p.x, p.y, r)) continue;
+    list.push({ x:p.x, y:p.y, r });
+    if (list.length > limit) list.shift();
+    return true;
+  }
+  // fallback: still add (even if close) — better than nothing
+  const p = randomPointInQuadrant(quadrant);
+  list.push({ x:p.x, y:p.y, r: rFn() });
+  if (list.length > limit) list.shift();
+  return true;
+}
+
+function spawnZonesForLevel(){
+  // TL: swamp slow zone
+  spawnZone(ZONES.swamp, ZONE_LIMITS.swamp, ZONE_R.swamp, "TL");
+
+  // BR: speed fields (one each type)
+  spawnZone(ZONES.speedPlayer, ZONE_LIMITS.speedPlayer, ZONE_R.speed, "BR");
+  spawnZone(ZONES.speedEnemy,  ZONE_LIMITS.speedEnemy,  ZONE_R.speed, "BR");
+
+  // BL: exp zone
+  spawnZone(ZONES.exp, ZONE_LIMITS.exp, ZONE_R.exp, "BL");
+}
+
+function playerInQuadrantBL(){
+  return inBL(player.x, player.y);
+}
+
+function playerSpeedZoneMult(){
+  // swamp slow first
+  let mult = 1.0;
+
+  for (const z of ZONES.swamp){
+    if (inCircleAura(player.x, player.y, z.x, z.y, z.r)) { mult *= 0.90; break; }
+  }
+  for (const z of ZONES.speedPlayer){
+    if (inCircleAura(player.x, player.y, z.x, z.y, z.r)) { mult *= 1.10; break; }
+  }
+  return mult;
+}
+
+function enemySpeedZoneMult(ex, ey){
+  let mult = 1.0;
+
+  for (const z of ZONES.swamp){
+    if (inCircleAura(ex, ey, z.x, z.y, z.r)) { mult *= 0.90; break; }
+  }
+  for (const z of ZONES.speedEnemy){
+    if (inCircleAura(ex, ey, z.x, z.y, z.r)) { mult *= 1.10; break; }
+  }
+  return mult;
+}
+
+function scoreExpZoneMult(){
+  // +10% score while inside any EXP zone (not missions)
+  for (const z of ZONES.exp){
+    if (inCircleAura(player.x, player.y, z.x, z.y, z.r)) return 1.10;
+  }
+  return 1.0;
+}
+
+function drawZones(){
+  // world->screen circles
+  function drawCircle(z, fill, stroke){
+    // NOTE: world->screen helpers in this codebase are wx/wy.
+    // (worldToScreenX/Y were used in an older version.)
+    const x = wx(z.x);
+    const y = wy(z.y);
+    ctx.beginPath();
+    ctx.arc(x, y, z.r, 0, Math.PI*2);
+    ctx.fillStyle = fill;
+    ctx.globalAlpha = 0.10;
+    ctx.fill();
+    ctx.globalAlpha = 0.22;
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
+  // TL swamp
+  for (const z of ZONES.swamp) drawCircle(z, "#3df9a8", "#b8ffe4");
+
+  // BR speed zones
+  for (const z of ZONES.speedPlayer) drawCircle(z, "#6ee7ff", "#c9f3ff");
+  for (const z of ZONES.speedEnemy)  drawCircle(z, "#ff5b5b", "#ffd4d4");
+
+  // BL exp
+  for (const z of ZONES.exp) drawCircle(z, "#ffd34d", "#fff0b8");
+}
+
+
+
+
+// ---- Legacy compatibility (old single-zone API) ----
+// Some older code paths (missions / HUD / minimap) still reference `zone` + `playerInsideZone()`.
+// We map "bonus zone" to the EXP zones (Bottom-Left).
+const zone = { active:false, x:0, y:0, r:0, bonus:1.10 };
+
+function playerInsideZone(){
+  return scoreExpZoneMult() > 1.0;
+}
+
+
+/* =========================================================
+   SECTION 13) MISSIONS (ONE ACTIVE AT A TIME)
+   - Always 1 mission active
+   - Completing a mission immediately rolls the next
+   - Reward: +250 score affected by levelBonusMult (NOT zone)
+   ========================================================= */
+const MISSION_REWARD = 125;
+
+
+ /* =========================================================
+    SECTION 13A) MISSION POOL
+    All mission templates + reward definition.
+    ========================================================= */
+
+const MISSIONS = [
+  { id:"M_NO_DASH_30", title:"Survive 30s without dashing", kind:"timer_no_dash", target:30 },
+  { id:"M_ZONE_5",     title:"Stay in the bonus zone for 5s straight", kind:"zone_streak", target:5 },
+  { id:"M_ORBS_3",     title:"Collect 3 orbs", kind:"collect_orbs", target:3 },
+  { id:"M_DASH_5",     title:"Sprint 5 times", kind:"dash_count", target:5 },
+];
+
+let missionBag = [];
+let mission = null;
+
+function refillMissionBag(){
+
+
+ /* =========================================================
+    SECTION 13B) MISSION BAG
+    Shuffle bag so missions rotate without repetition.
+    ========================================================= */
+  missionBag = [...MISSIONS];
+  // Fisher-Yates shuffle
+  for (let i = missionBag.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = missionBag[i];
+    missionBag[i] = missionBag[j];
+    missionBag[j] = tmp;
+  }
+}
+
+function nextMission(){
+
+
+ /* =========================================================
+    SECTION 13C) MISSION LIFECYCLE
+    Select next mission and reset progress/streak.
+    ========================================================= */
+  if (missionBag.length === 0) refillMissionBag();
+  const m = missionBag.pop();
+
+  mission = {
+    id: m.id,
+    title: m.title,
+    kind: m.kind,
+    target: m.target,
+    progress: 0,
+    streak: 0,
+  };
+}
+
+function awardMission(){
+
+
+ /* =========================================================
+    SECTION 13D) MISSION REWARD
+    Score reward affected by level bonus (not zone).
+    ========================================================= */
+  // affected by levelBonusMult, NOT by zone bonus
+  score += MISSION_REWARD * levelBonusMult;
+  nextMission();
+}
+
+function updateMission(dt){
+
+
+ /* =========================================================
+    SECTION 13E) MISSION UPDATE
+    Tick timer missions + zone streak missions.
+    ========================================================= */
+  if (!mission) return;
+
+  if (mission.kind === "timer_no_dash"){
+    mission.progress += dt;
+    if (mission.progress >= mission.target) awardMission();
+    return;
+  }
+
+  if (mission.kind === "zone_streak"){
+    if (playerInsideZone()) mission.streak += dt;
+    else mission.streak = 0;
+
+    mission.progress = mission.streak;
+    if (mission.progress >= mission.target) awardMission();
+    return;
+  }
+
+  // counters updated from events (orbs collected / dashes)
+}
+
+function missionOnDash(){
+
+
+ /* =========================================================
+    SECTION 13F) MISSION EVENTS
+    Dash/orb hooks update counter missions.
+    ========================================================= */
+  if (!mission) return;
+
+  if (mission.kind === "timer_no_dash"){
+    // reset progress when you dash
+    mission.progress = 0;
+    return;
+  }
+
+  if (mission.kind === "dash_count"){
+    mission.progress += 1;
+    if (mission.progress >= mission.target) awardMission();
+  }
+}
+
+function missionOnOrbCollected(){
+  if (!mission) return;
+  if (mission.kind === "collect_orbs"){
+    mission.progress += 1;
+    if (mission.progress >= mission.target) awardMission();
+  }
+}
+
+function updateMissionHud(){
+    if (!missionPill) return;
+
+    if (!mission){
+      missionPill.textContent = "Mission: —";
+      if (missionBar) missionBar.style.width = "0%";
+      return;
+    }
+
+    let progText = "";
+    let pct = 0;
+
+    if (mission.kind === "timer_no_dash" || mission.kind === "zone_streak"){
+      progText = `${mission.progress.toFixed(1)} / ${mission.target.toFixed(0)}s`;
+      pct = clamp(mission.progress / mission.target, 0, 1);
+    } else {
+      progText = `${mission.progress} / ${mission.target}`;
+      pct = clamp(mission.progress / mission.target, 0, 1);
+    }
+
+    missionPill.textContent = `Mission: ${mission.title} (${progText})`;
+    if (missionBar) missionBar.style.width = `${Math.round(pct * 100)}%`;
+  }
+/* =========================================================
+   SECTION 13) PARTICLES (FEEDBACK)
+   ========================================================= */
+const particles = [];
+
+
+ /* =========================================================
+    SECTION 13H) PARTICLE CORE
+    Lightweight particle system for feedback bursts.
+    ========================================================= */
+function spawnBurst(x, y, n, speed=520){
+  for (let i=0;i<n;i++){
+   particles.push({
+     x, y,
+     vx: rand(-speed, speed),
+
+     vy: rand(-speed, speed),
+     life: rand(0.35, 1.05),
+     r: rand(1, 3),
+   });
+  }
+}
+
+function spawnSprintBurst(x, y){
+
+
+ /* =========================================================
+    SECTION 13I) PARTICLE VARIANTS
+    Special burst for Yellow sprint + general burst for dash/death.
+    ========================================================= */
+  // smaller, tighter effect for YEL sprint
+  for (let i = 0; i < 10; i++){
+    particles.push({
+      x, y,
+      vx: rand(-320, 320),
+      vy: rand(-320, 320),
+      life: rand(0.18, 0.45),
+      r: rand(1, 2.2),
+    });
+  }
+}
+
+function updateParticles(dt){
+
+
+ /* =========================================================
+    SECTION 13J) PARTICLE UPDATE
+    Integrates particle motion + lifetime decay.
+    ========================================================= */
+  for (let i = particles.length - 1; i >= 0; i--){
+    const p = particles[i];
+    p.life -= dt;
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.vx *= 0.98;
+    p.vy *= 0.98;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+}
+
+/* =========================================================
+   SECTION 14) ENEMY SPAWN SYSTEM (YOUR RULES)
+   Cap logic stays the same.
+   ========================================================= */
+let maxCapBase = 20;
+let maxCapMod = 0;
+const getMaxCap = () => Math.max(1, maxCapBase + maxCapMod);
+
+
+ /* =========================================================
+    SECTION 14A) ENEMY CAP
+    Global cap + modifiers (perks).
+    ========================================================= */
+
+let redTimer = 0, yelTimer = 0, vioTimer = 0;
+const RED_EVERY = 1.0;
+const YEL_EVERY = 2.5;
+const VIO_EVERY = 4.0;
+
+
+ /* =========================================================
+    SECTION 14B) SPAWN TIMERS
+    Per-kind timers controlling spawn cadence.
+    ========================================================= */
+
+function resetSpawnPhase(){
+  redTimer = 0; yelTimer = 0; vioTimer = 0;
+}
+
+function spawnEnemy(kind){
+
+
+ /* =========================================================
+    SECTION 14C) ENEMY FACTORY
+    Creates enemy objects with per-kind params (size, drift, sprint, commit).
+    ========================================================= */
+ const side = Math.floor(rand(0, 4));
+ const margin = 60;
+
+ let x, y;
+ if (side === 0) { x = rand(0, WORLD_W); y = -margin; }
+ else if (side === 1) { x = WORLD_W + margin; y = rand(0, WORLD_H); }
+ else if (side === 2) { x = rand(0, WORLD_W); y = WORLD_H + margin; }
+ else { x = -margin; y = rand(0, WORLD_H); }
+
+const baseEnemySpeed = enemyBaseSpeed(kind.key, level);
+
+let r = 14;
+let speed = baseEnemySpeed;
+let drift = 0;
+
+let sprintCd = 999;
+let sprintT = 0;
+let sprintOn = false;
+let sprintLeft = 0.25;
+
+    let sprintMult = 1.0;
+
+if (kind.key === "RED") {
+      r = rand(10, 25);
+      speed = baseEnemySpeed;
+      drift = rand(-0.75, 0.75);
+    }
+
+
+if (kind.key === "YEL") {
+      r = rand(10, 15);
+      speed = baseEnemySpeed;
+      drift = rand(-1, 1);
+      sprintCd = rand(2.0, 3.5);
+      sprintT = rand(0, sprintCd);
+      sprintOn = false;
+      sprintLeft = 0.25;
+      sprintMult = rand(2.5, 3.0);
+    }
+
+
+if (kind.key === "VIO") {
+      r = rand(25, 35);
+      speed = baseEnemySpeed;
+      drift = rand(-0.25, 0.25);
+    }
+
+
+enemies.push({
+ kind,
+ x, y,
+ r,
+ baseSpeed: speed,
+ speed,
+ drift,
+
+ // yellow sprint
+ sprintCd,
+
+     sprintT,
+     sprintOn,
+     sprintLeft,
+
+     // purple commitment
+     commitT: 0,
+     commitEvery: rand(0.8, 1.4),
+     tx: player.x,
+     ty: player.y,
+
+      // red wobble
+      wobT: rand(0, 10),
+    });
+}
+
+function removeOldest(){
+  if (enemies.length > 0) enemies.shift();
+}
+function removeOldestOfKind(kindKey){
+  const idx = enemies.findIndex(e => e.kind.key === kindKey);
+  if (idx >= 0) enemies.splice(idx, 1);
+}
+function ensureCapBeforeSpawning(targetKindKey){
+
+
+ /* =========================================================
+    SECTION 14D) CAP PRIORITY RULES
+    Prefer removing weaker enemies when stronger ones spawn.
+    ========================================================= */
+  if (enemies.length < getMaxCap()) return;
+
+  // Priority rules keep the "stronger" kinds on screen.
+  if (targetKindKey === "YEL") {
+    // Prefer removing a RED to make space for YEL
+    removeOldestOfKind("RED");
+    if (enemies.length >= getMaxCap()) removeOldest();
+    return;
+  }
+
+  if (targetKindKey === "VIO") {
+    // Prefer removing a YEL, otherwise a RED
+    const hasYel = enemies.some(e => e.kind.key === "YEL");
+    if (hasYel) removeOldestOfKind("YEL");
+    else removeOldestOfKind("RED");
+
+    if (enemies.length >= getMaxCap()) removeOldest();
+    return;
+  }
+
+  // Default: remove oldest
+  removeOldest();
+}
+
+ /* =========================================================
+    SECTION 15) SCORE MODEL (+ ZONE BONUS)
+    Score per second from enemies, with level penalty and perks.
+    ========================================================= */
+ function levelPenaltyFactor(lv){ return Math.pow(0.9, (lv - 1)); }
+ let levelBonusMult = 1.0;
+
+
+ /* =========================================================
+    SECTION 15A) SCORE ACCUMULATION
+    Enemy pps + level penalty + level bonus + zone bonus.
+    ========================================================= */
+
+ function addScoreFromEnemies(dt){
+  let pps = 0;
+  for (const e of enemies) pps += e.kind.pps;
+
+     let factor = levelPenaltyFactor(level) * levelBonusMult * scoreExpZoneMult();
+
+     score += pps * dt * factor;
+ }
+
+ /* =========================================================
+    SECTION 16) PERK SYSTEM (NORMAL / RARE / RISKY)
+    Rare chance 5%, risky 10%, rare one-time per run.
+    ========================================================= */
+ const RARE_CHANCE = 0.05;
+ const RISKY_CHANCE = 0.10;
+
+ const rareUsed = new Set();
+
+
+ /* =========================================================
+    SECTION 16A) PERK TABLES
+    Normal / Rare / Risky perk definitions.
+    ========================================================= */
+
+ const NORMAL_PERKS = [
+   { id:"N_SPEED_50", name:"+50 speed", desc:"Base speed +50 (stack).", kind:"normal",
+     apply: () => { player.baseSpeed += 50; } },
+   { id:"N_DASHCD_M075", name:"dash cooldown -0.75", desc:"Dash cooldown -0.75s (stack).", kind:"normal",
+     apply: () => { player.dashCooldown = Math.max(0, player.dashCooldown - 0.75); } },
+   { id:"N_RADIUS_M25", name:"radius -2.5", desc:"Player radius -2.5 (stack).", kind:"normal",
+     apply: () => { player.r = Math.max(2, player.r - 2.5); } },
+   { id:"N_LIFE_PLUS1", name:"+1 life", desc:"Gain +1 life (stack).", kind:"normal",
+     apply: () => { player.lives += 1; } },
+   { id:"N_DASHSPEED_100", name:"+100 dash speed", desc:"Dash speed +100 (stack).",
+kind:"normal",
+     apply: () => { player.dashSpeed += 100; } },
+   { id:"N_LEVELS_5", name:"+5% level bonus", desc:"Level bonus x1.05 (stack).",
+kind:"normal",
+     apply: () => { levelBonusMult *= 1.05; } },
+ ];
+
+ const RARE_PERKS = [
+   { id:"R_INVULN_DASH_03", name:"dash invuln +0.3s", desc:"Invulnerability during dash +0.3s (stack).", kind:"rare",
+     apply: () => { player.invulnDash += 0.3; } },
+   { id:"R_MAXCAP_M2", name:"enemy cap -2", desc:"Max enemies -2 (stack).", kind:"rare",
+     apply: () => { maxCapMod -= 5; } },
+   { id:"R_DASHCD_M15", name:"dash cooldown -1.5", desc:"Dash cooldown -1.5s (stack).",
+kind:"rare",
+     apply: () => { player.dashCooldown = Math.max(0, player.dashCooldown - 1.5); } },
+   { id:"R_SPEED_125", name:"+125 speed", desc:"Base speed +125 (stack).", kind:"rare",
+     apply: () => { player.baseSpeed += 125; } },
+   { id:"R_DASHSPEED_200", name:"+200 dash speed", desc:"Dash speed +200 (stack).",
+kind:"rare",
+     apply: () => { player.dashSpeed += 200; } },
+   { id:"R_RADIUS_M5", name:"radius -5", desc:"Player radius -5 (stack).", kind:"rare",
+     apply: () => { player.r = Math.max(2, player.r - 5); } },
+   { id:"R_LIFE_PLUS2", name:"+2 lives", desc:"Gain +2 lives (stack).", kind:"rare",
+     apply: () => { player.lives += 2; } },
+   { id:"R_LEVELS_15", name:"+15% level bonus", desc:"Level bonus x1.15 (stack).",
+kind:"rare",
+     apply: () => { levelBonusMult *= 1.15; } },
+ ];
+
+  const RISKY_PERKS = [
+    { id:"K_RISK_1", name:"+90 speed, -75 dash speed", desc:"Trade: +90 speed, but -75 dash speed.", kind:"risky",
+      apply: () => { player.baseSpeed += 90; player.dashSpeed = Math.max(0, player.dashSpeed
+- 75); } },
+    { id:"K_RISK_2", name:"+150 dash speed, +1 dash cooldown", desc:"Dash stronger, but cooldown +1s.", kind:"risky",
+      apply: () => { player.dashSpeed += 150; player.dashCooldown += 1; } },
+    { id:"K_RISK_3", name:"+150 dash speed, -40 speed", desc:"Dash stronger, but speed -40.",
+kind:"risky",
+      apply: () => { player.dashSpeed += 150; player.baseSpeed = Math.max(0, player.baseSpeed
+- 40); } },
+    { id:"K_RISK_4", name:"-1 dash cooldown, -75 dash speed", desc:"Cooldown -1s, but dash speed -75.", kind:"risky",
+      apply: () => { player.dashCooldown = Math.max(0, player.dashCooldown - 1);
+player.dashSpeed = Math.max(0, player.dashSpeed - 75); } },
+    { id:"K_RISK_5", name:"+10% level bonus, +2.5 radius", desc:"+10% level bonus and radius +2.5.", kind:"risky",
+      apply: () => { levelBonusMult *= 1.10; player.r += 2.5; } },
+  ];
+
+ function availableRarePerks(){ return RARE_PERKS.filter(p => !rareUsed.has(p.id)); }
+
+ function rollOnePerk(){
+
+
+ /* =========================================================
+    SECTION 16B) PERK ROLLING
+    Rare/risky chance + fallbacks + distinct roll of 3 options.
+    ========================================================= */
+  if (Math.random() < RISKY_CHANCE) return pick(RISKY_PERKS);
+
+     if (Math.random() < RARE_CHANCE) {
+       const avail = availableRarePerks();
+       if (avail.length > 0) return pick(avail);
+     }
+
+     return pick(NORMAL_PERKS);
+ }
+
+ function rollThreeDistinctPerks(){
+   const opts = [];
+   const used = new Set();
+   while (opts.length < 3){
+     const p = rollOnePerk();
+     if (used.has(p.id)) continue;
+     used.add(p.id);
+     opts.push(p);
+   }
+   return opts;
+ }
+
+  /* =========================================================
+     SECTION 17) INPUT
+     Keyboard controls + overlay selection.
+     ========================================================= */
+  const keys = new Set();
+  const isMoveKey = (k) =>
+["arrowup","arrowdown","arrowleft","arrowright","w","a","s","d"].includes(k);
+
+
+ /* =========================================================
+    SECTION 17A) KEYBOARD HANDLERS
+    Keydown/keyup logic + overlay shortcut keys.
+    ========================================================= */
+
+ window.addEventListener("keydown", (e) => {
+  const k = e.key.toLowerCase();
+
+     if (k === "r") { resetRun(); return; }
+
+     if (choiceOverlay.style.display === "grid") {
+       if (k === "1") { pickPerk(0); e.preventDefault(); return; }
+       if (k === "2") { pickPerk(1); e.preventDefault(); return; }
+       if (k === "3") { pickPerk(2); e.preventDefault(); return; }
+       e.preventDefault();
+
+     return;
+ }
+
+ if (k === "p") { togglePause(); return; }
+
+ if (k === "shift" || k === " ") {
+   keys.add(k);
+   if (!running && !gameOver) start();
+   tryDash();
+   e.preventDefault();
+   return;
+ }
+
+  if (isMoveKey(k)) {
+    keys.add(k);
+    if (!running && !gameOver) start();
+    e.preventDefault();
+    return;
+  }
+}, { passive:false });
+
+window.addEventListener("keyup", (e) => {
+  keys.delete(e.key.toLowerCase());
+});
+
+/* =========================================================
+   SECTION 18) START / PAUSE / HUD + STATS
+   ========================================================= */
+function start(){
+  running = true;
+  paused = false;
+  gameOver = false;
+}
+
+function togglePause(){
+  if (!running || gameOver) return;
+  paused = !paused;
+}
+
+
+ /* =========================================================
+    SECTION 18A) HUD + STATS UI
+    HUD pills + stat-delta panel updates.
+    ========================================================= */
+
+function updateHud(){
+  hudLevelPill.textContent = `Level: ${level}`;
+  scorePill.textContent = `Score: ${Math.floor(score)}`;
+ livesPill.textContent = `Lives: ${player.lives}`;
+ levelPill.textContent = `Level: ${level}`;
+
+     if (player.dashCdLeft <= 0) dashPill.textContent = "Dash: Ready";
+     else dashPill.textContent = `Dash: ${player.dashCdLeft.toFixed(1)}s`;
+
+     bestScorePill.textContent = `Best score: ${bestScore}`;
+     bestLevelPill.textContent = `Best level: ${bestLevel}`;
+ }
+
+ function updateStatsUI(){
+   statSpeed.textContent = signFmt(player.baseSpeed - BASE.speed);
+   statDashSpeed.textContent = signFmt(player.dashSpeed - BASE.dashSpeed);
+   statDashCd.textContent = signFmt(player.dashCooldown - BASE.dashCooldown);
+   statRadius.textContent = signFmt(player.r - BASE.r);
+     {
+    const pct = (levelBonusMult - 1) * 100;
+    statLevelBonus.textContent = (Math.abs(pct) < 1e-9) ? "Base" : `${pct>0?'+':''}${pct.toFixed(0)}%`;
+  }
+
+ }
+
+ /* =========================================================
+    SECTION 19) RESET RUN
+    Clears run state, obstacles, timers, etc.
+    ========================================================= */
+ function resetRun(){
+
+
+ /* =========================================================
+    SECTION 19A) RUN STATE RESET
+    Hard reset: stats, timers, enemies, obstacles, zone, UI.
+    ========================================================= */
+   running = false;
+   paused = false;
+   gameOver = false;
+
+     level = 1;
+     score = 0;
+     nextLevelAt = 500;
+
+     player.x = WORLD_W/2; player.y = WORLD_H/2;
+     player.r = BASE.r;
+     player.baseSpeed = BASE.speed;
+     player.vx = 0; player.vy = 0;
+     player.dashSpeed = BASE.dashSpeed;
+     player.dashDuration = BASE.dashDuration;
+     player.dashCooldown = BASE.dashCooldown;
+     player.dashTimeLeft = 0;
+     player.dashCdLeft = 0;
+     player.invulnDash = BASE.dashInvuln;
+     player.invulnLeft = 0;
+     player.lives = 1;
+
+     enemies.length = 0;
+     particles.length = 0;
+
+    orbs.length = 0;
+
+    // v10B zones + obstacles reset
+    obstacles.length = 0;
+    ZONES.swamp.length = 0;
+    ZONES.speedPlayer.length = 0;
+    ZONES.speedEnemy.length = 0;
+    ZONES.exp.length = 0;
+
+    maxCapBase = 20;
+    maxCapMod = 0;
+
+    levelBonusMult = 1.0;
+    rareUsed.clear();
+
+    resetSpawnPhase();
+
+    orbTimer = 0;
+    nextOrbIn = rand(3, 7);
+
+    // obstacles reset on death, and start with 2 for level 1
+    obstacles.length = 0;
+    addObstaclesForLevel(level);
+
+    // v10B: spawn one zone per category each level
+    spawnZonesForLevel();
+    spawnZonesForLevel();
+
+    closeChoice();
+
+    // missions: start a fresh mission immediately
+    refillMissionBag();
+    nextMission();
+    updateMissionHud();
+
+    keys.clear();
+    updateCamera(player);
+    updateHud();
+    updateStatsUI();
+}
+
+/* =========================================================
+   SECTION 20) DASH
+   Dash distance increases with dash speed because duration is fixed.
+   ========================================================= */
+function tryDash(){
+
+
+ /* =========================================================
+    SECTION 20A) DASH GATEKEEPING
+    Dash only when moving + cooldown ready; sets invuln window.
+    ========================================================= */
+  if (!running || paused || gameOver) return;
+
+    // v10B: No-dash quadrant (Bottom-Left)
+    if (playerInQuadrantBL()) return;
+const moving =
+     keys.has("arrowleft")||keys.has("a")||
+     keys.has("arrowright")||keys.has("d")||
+     keys.has("arrowup")||keys.has("w")||
+     keys.has("arrowdown")||keys.has("s");
+
+    if (!moving) return;
+    if (player.dashTimeLeft > 0) return;
+    if (player.dashCdLeft > 0) return;
+
+    player.dashTimeLeft = player.dashDuration;
+    player.invulnLeft = player.invulnDash;
+    player.dashCdLeft = player.dashCooldown;
+
+    spawnBurst(player.x, player.y, 22, 540);
+}
+
+/* =========================================================
+   SECTION 21) LEVEL UP
+   Adds 2 obstacles each level, keeps zone timers untouched.
+   ========================================================= */
+let currentChoices = [];
+
+function doLevelUp(){
+
+
+ /* =========================================================
+    SECTION 21A) LEVEL-UP FLOW
+    Clears enemies, re-centers player, regenerates obstacles, opens perk choice.
+    ========================================================= */
+ level += 1;
+ nextLevelAt += 500;
+
+    enemies.length = 0;
+    resetSpawnPhase();
+
+    player.x = WORLD_W/2;
+    player.y = WORLD_H/2;
+    player.vx = 0;
+    player.vy = 0;
+    player.invulnLeft = 0;
+
+    addObstaclesForLevel(level);
+
+    openChoice();
+}
+
+function openChoice(){
+
+
+ /* =========================================================
+    SECTION 21B) PERK CHOICE UI
+    Roll 3 perks and render choice overlay.
+    ========================================================= */
+ paused = true;
+ running = true;
+
+    currentChoices = rollThreeDistinctPerks();
+    choiceOverlay.style.display = "grid";
+    choiceInfo.textContent = `Level: ${level} • Score: ${Math.floor(score)} • Cap: ${getMaxCap()}`;
+
+    for (let i=0;i<3;i++){
+      const p = currentChoices[i];
+      const rareBadge = (p.kind === "rare") ? `<span class="rareBadge">RARE</span>` : "";
+      const riskBadge = (p.kind === "risky") ? `<span class="riskBadge">RISKY</span>` : "";
+      optEls[i].name.innerHTML = `${p.name}${rareBadge}${riskBadge}`;
+      optEls[i].desc.textContent = p.desc;
+    }
+}
+
+function closeChoice(){
+  choiceOverlay.style.display = "none";
+  currentChoices = [];
+}
+
+function pickPerk(index){
+ if (currentChoices.length !== 3) return;
+ const p = currentChoices[index];
+ if (!p) return;
+
+    p.apply();
+    if (p.kind === "rare") rareUsed.add(p.id);
+
+    closeChoice();
+    paused = false;
+
+    updateStatsUI();
+}
+
+optEls.forEach((o, idx) => o.root.addEventListener("click", () => pickPerk(idx)));
+
+/* =========================================================
+   SECTION 22) DEATH / LIVES
+   Lose life -> clean restart inside same level/score.
+   ========================================================= */
+function loseLifeOrDie(){
+
+
+ /* =========================================================
+    SECTION 22A) LIFE LOSS VS GAME OVER
+    If lives remain: soft reset; else: end run + persist bests.
+    ========================================================= */
+  if (player.lives > 1){
+    player.lives -= 1;
+
+     enemies.length = 0;
+     resetSpawnPhase();
+
+     player.x = WORLD_W/2;
+     player.y = WORLD_H/2;
+     player.vx = 0;
+
+         player.vy = 0;
+         player.invulnLeft = 0;
+
+         spawnBurst(player.x, player.y, 70, 560);
+         return;
+     }
+
+     gameOver = true;
+     running = false;
+     paused = false;
+
+     spawnBurst(player.x, player.y, 160, 620);
+
+     const s = Math.floor(score);
+     if (s > bestScore){
+       bestScore = s;
+       localStorage.setItem(BEST_SCORE_KEY, String(bestScore));
+     }
+     if (level > bestLevel){
+       bestLevel = level;
+       localStorage.setItem(BEST_LEVEL_KEY, String(bestLevel));
+     }
+
+     updateHud();
+ }
+
+ /* =========================================================
+    SECTION 23) ENEMY MOVEMENT + OBSTACLE AVOID (NO PUSH-OUT)
+    If the next step collides, enemies steer sideways to go around.
+    ========================================================= */
+ function wouldHitObstacleAt(x, y, r){
+   for (const o of obstacles){
+     if (circleRectCollide(x, y, r, o.x - OB_PAD, o.y - OB_PAD, o.w + OB_PAD*2, o.h +
+OB_PAD*2)) return true;
+   }
+   return false;
+ }
+
+ function normalize(dx, dy){
+   const d = Math.hypot(dx, dy) || 1;
+   return { x: dx/d, y: dy/d };
+ }
+
+ function steerAvoid(e, dir, dt){
+
+
+ /* =========================================================
+    SECTION 23A) OBSTACLE AVOIDANCE
+    Forward test then tangent steering; jitter fallback if stuck.
+    ========================================================= */
+
+    const speed = e.speed;
+
+    // Try forward
+    const fx = e.x + dir.x * speed * dt;
+    const fy = e.y + dir.y * speed * dt;
+    if (!wouldHitObstacleAt(fx, fy, e.r)) return dir;
+
+    // Try left/right tangents
+    const left = { x: -dir.y, y: dir.x };
+    const right = { x: dir.y, y: -dir.x };
+
+    const lx = e.x + left.x * speed * dt;
+    const ly = e.y + left.y * speed * dt;
+    const rx = e.x + right.x * speed * dt;
+    const ry = e.y + right.y * speed * dt;
+
+    const leftOk = !wouldHitObstacleAt(lx, ly, e.r);
+    const rightOk = !wouldHitObstacleAt(rx, ry, e.r);
+
+    if (leftOk && rightOk){
+      // pick side that moves closer to player
+      const dl = (player.x - lx)*(player.x - lx) + (player.y - ly)*(player.y - ly);
+      const dr = (player.x - rx)*(player.x - rx) + (player.y - ry)*(player.y - ry);
+      return (dl < dr) ? left : right;
+    }
+    if (leftOk) return left;
+    if (rightOk) return right;
+
+    // If totally stuck, add small jitter (prevents freezing)
+    const j = normalize(dir.x + rand(-0.6,0.6), dir.y + rand(-0.6,0.6));
+    return j;
+}
+
+function computeEnemyChaseDir(e, dt){
+
+
+ /* =========================================================
+    SECTION 23B) CHASE MODES
+    YEL shortest, VIO commit target, RED wobble mix.
+    ========================================================= */
+ // Yellow: pure shortest (direct)
+ if (e.kind.key === "YEL"){
+   return normalize(player.x - e.x, player.y - e.y);
+ }
+
+    // Purple: commit target updates rarely
+    if (e.kind.key === "VIO"){
+      e.commitT += dt;
+      if (e.commitT >= e.commitEvery){
+        e.commitT = 0;
+
+         e.commitEvery = rand(0.9, 1.6);
+
+         // slight prediction so it "commits" forward
+         const px = player.x + player.vx * 0.18;
+         const py = player.y + player.vy * 0.18;
+         e.tx = clamp(px, 0, WORLD_W);
+         e.ty = clamp(py, 0, WORLD_H);
+        }
+        return normalize(e.tx - e.x, e.ty - e.y);
+    }
+
+    // Red: wobble / random-ish
+    e.wobT += dt;
+    const wob = Math.sin(e.wobT * 2.2) * 0.55;
+    const base = normalize(player.x - e.x, player.y - e.y);
+    const perp = { x: -base.y, y: base.x };
+    const mix = normalize(base.x + perp.x * wob, base.y + perp.y * wob);
+    return mix;
+}
+
+/* =========================================================
+   SECTION 24) MAIN UPDATE
+   Everything runs here (and timers auto-pause when paused/choice).
+   ========================================================= */
+function update(dt){
+
+
+ /* =========================================================
+    SECTION 24A) FRAME UPDATE PIPELINE
+    High-level ordering: score → zone/orbs/missions → level-up → movement → spawns → enemy loop → particles → camera/UI.
+    ========================================================= */
+  if (!running) return;
+  if (gameOver) return;
+  if (paused) return;
+
+    // score from enemies (+ zone bonus)
+    addScoreFromEnemies(dt);
+
+    // zone timers (not resetting on level up)
+    // orbs timers
+    updateOrbs(dt);
+    tryCollectOrbs();
+
+    updateMission(dt);
+    updateMissionHud();
+
+    // level up
+    if (score >= nextLevelAt){
+      doLevelUp();
+      updateHud();
+      return;
+
+}
+
+// input movement
+let ax = 0, ay = 0;
+if (keys.has("arrowleft") || keys.has("a")) ax -= 1;
+if (keys.has("arrowright")|| keys.has("d")) ax += 1;
+if (keys.has("arrowup") || keys.has("w")) ay -= 1;
+if (keys.has("arrowdown") || keys.has("s")) ay += 1;
+
+if (ax !== 0 || ay !== 0){
+  const len = Math.hypot(ax, ay);
+  ax /= len; ay /= len;
+}
+
+// dash timers
+player.dashCdLeft = Math.max(0, player.dashCdLeft - dt);
+player.invulnLeft = Math.max(0, player.invulnLeft - dt);
+
+let speedNow = player.baseSpeed * playerSpeedZoneMult();
+if (player.dashTimeLeft > 0){
+  player.dashTimeLeft = Math.max(0, player.dashTimeLeft - dt);
+  speedNow = player.dashSpeed;
+}
+
+player.vx = ax * speedNow;
+player.vy = ay * speedNow;
+
+const nx = player.x + player.vx * dt;
+const ny = player.y + player.vy * dt;
+movePlayerWithCollision(nx, ny);
+
+// enemy spawns
+const cap = getMaxCap();
+
+// RED spawns from Level 1 onward
+redTimer += dt;
+while (redTimer >= RED_EVERY){
+  redTimer -= RED_EVERY;
+  if (enemies.length < cap) spawnEnemy(ENEMY_KIND.RED);
+}
+
+// YEL spawns starting at Level 4
+if (level >= 4){
+  yelTimer += dt;
+  while (yelTimer >= YEL_EVERY){
+    yelTimer -= YEL_EVERY;
+    if (enemies.length >= cap) ensureCapBeforeSpawning("YEL");
+    spawnEnemy(ENEMY_KIND.YEL);
+  }
+}
+
+// VIO spawns starting at Level 8
+if (level >= 8){
+  vioTimer += dt;
+  while (vioTimer >= VIO_EVERY){
+    vioTimer -= VIO_EVERY;
+    if (enemies.length >= cap) ensureCapBeforeSpawning("VIO");
+    spawnEnemy(ENEMY_KIND.VIO);
+  }
+}
+
+// enemies move + collide with player
+for (const e of enemies){
+  // yellow sprint
+  if (e.kind.key === "YEL"){
+    e.sprintT += dt;
+
+      if (e.sprintT >= e.sprintCd){
+        e.sprintT = 0;
+        e.sprintOn = true;
+          e.sprintLeft = 0.25;
+          spawnSprintBurst(e.x, e.y);
+      }
+      if (e.sprintOn){
+        e.speed = e.baseSpeed * 1.8;
+        e.sprintLeft -= dt;
+        if (e.sprintLeft <= 0){
+          e.sprintOn = false;
+          e.speed = e.baseSpeed;
+        }
+      } else {
+        e.speed = e.baseSpeed;
+      }
+    } else {
+      e.speed = e.baseSpeed;
+    }
+
+    // chase dir (mode by type)
+    const chase = computeEnemyChaseDir(e, dt);
+
+    // small drift flavor (keeps your “feel”)
+    const px = -chase.y;
+    const py = chase.x;
+    const driftScale = (e.kind.key === 'YEL' && e.sprintOn) ? 0.60 : 0.25; // v10: more drift during YEL sprint
+      const dir = normalize(chase.x + px * e.drift * driftScale, chase.y + py * e.drift * driftScale);
+
+    // obstacle avoidance steering (no push-out)
+    const steer = steerAvoid(e, dir, dt);
+
+    const ex = e.x + steer.x * e.speed * dt;
+    const ey = e.y + steer.y * e.speed * dt;
+    moveCircleWithCollision(e, ex, ey);
+// player collision
+    if (player.invulnLeft <= 0){
+      const hitDist = player.r + e.r;
+      // v10B: zone-based speed modifiers (swamp / enemy speed fields)
+      e.speed *= enemySpeedZoneMult(e.x, e.y);
+
+      const dx = player.x - e.x;
+      const dy = player.y - e.y;
+      if ((dx*dx + dy*dy) <= hitDist*hitDist){
+        loseLifeOrDie();
+        break;
+      }
+    }
+}
+
+    // particles
+    updateParticles(dt);
+
+    // camera + HUD
+    updateCamera(player);
+    updateHud();
+}
+
+/* =========================================================
+   SECTION 25) DRAW (GRAPHICS UPGRADE)
+   Includes: vignette, soft glows, rounded obstacles, zone ring text.
+   ========================================================= */
+function roundRectPath(x, y, w, h, r){
+  const rr = Math.min(r, w/2, h/2);
+  ctx.beginPath();
+  ctx.moveTo(x + rr, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rr);
+  ctx.arcTo(x + w, y + h, x, y + h, rr);
+  ctx.arcTo(x, y + h, x, y, rr);
+  ctx.arcTo(x, y, x + w, y, rr);
+  ctx.closePath();
+}
+
+function drawBackground(){
+
+
+ /* =========================================================
+    SECTION 25A) RENDER: BACKGROUND
+    Grid + vignette + world border.
+    ========================================================= */
+ // base
+ ctx.fillStyle = "#070a0f";
+ ctx.fillRect(0,0,VIEW_W,VIEW_H);
+
+  /* ---------------------------------------------------------
+     v10: EDGE PROXIMITY INDICATOR
+     The border stroke itself is only visible when it enters
+     the viewport. To make the edge readable earlier, we draw
+     subtle screen-edge glows when the player is close to the
+     world bounds.
+     --------------------------------------------------------- */
+  {
+    const warnDist = 260; // how early the glow starts
+    const aL = clamp(1 - (player.x / warnDist), 0, 1);
+    const aR = clamp(1 - ((WORLD_W - player.x) / warnDist), 0, 1);
+    const aT = clamp(1 - (player.y / warnDist), 0, 1);
+    const aB = clamp(1 - ((WORLD_H - player.y) / warnDist), 0, 1);
+
+    // left
+    if (aL > 0){
+      const gL = ctx.createLinearGradient(0, 0, 160, 0);
+      gL.addColorStop(0, `rgba(77,163,255,${0.55 * aL})`);
+      gL.addColorStop(1, "rgba(77,163,255,0)");
+      ctx.fillStyle = gL;
+      ctx.fillRect(0, 0, 160, VIEW_H);
+    }
+    // right
+    if (aR > 0){
+      const gR = ctx.createLinearGradient(VIEW_W, 0, VIEW_W - 160, 0);
+      gR.addColorStop(0, `rgba(77,163,255,${0.55 * aR})`);
+      gR.addColorStop(1, "rgba(77,163,255,0)");
+      ctx.fillStyle = gR;
+      ctx.fillRect(VIEW_W - 160, 0, 160, VIEW_H);
+    }
+    // top
+    if (aT > 0){
+      const gT = ctx.createLinearGradient(0, 0, 0, 160);
+      gT.addColorStop(0, `rgba(77,163,255,${0.55 * aT})`);
+      gT.addColorStop(1, "rgba(77,163,255,0)");
+      ctx.fillStyle = gT;
+      ctx.fillRect(0, 0, VIEW_W, 160);
+    }
+    // bottom
+    if (aB > 0){
+      const gB = ctx.createLinearGradient(0, VIEW_H, 0, VIEW_H - 160);
+      gB.addColorStop(0, `rgba(77,163,255,${0.55 * aB})`);
+      gB.addColorStop(1, "rgba(77,163,255,0)");
+      ctx.fillStyle = gB;
+      ctx.fillRect(0, VIEW_H - 160, VIEW_W, 160);
+    }
+  }
+
+    // subtle grid
+    ctx.globalAlpha = 0.10;
+    ctx.lineWidth = 1;
+
+    const startX = Math.floor(camera.x / 64) * 64;
+    const startY = Math.floor(camera.y / 64) * 64;
+
+    for (let x = startX; x <= camera.x + VIEW_W; x += 64){
+      ctx.beginPath();
+      ctx.moveTo(wx(x), 0);
+      ctx.lineTo(wx(x), VIEW_H);
+      ctx.strokeStyle = "#22304a";
+      ctx.stroke();
+    }
+    for (let y = startY; y <= camera.y + VIEW_H; y += 64){
+
+   ctx.beginPath();
+   ctx.moveTo(0, wy(y));
+   ctx.lineTo(VIEW_W, wy(y));
+   ctx.strokeStyle = "#22304a";
+   ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+   // vignette
+   const g = ctx.createRadialGradient(VIEW_W/2, VIEW_H/2, 200, VIEW_W/2, VIEW_H/2,
+900);
+   g.addColorStop(0, "rgba(0,0,0,0)");
+   g.addColorStop(1, "rgba(0,0,0,0.55)");
+   ctx.fillStyle = g;
+   ctx.fillRect(0,0,VIEW_W,VIEW_H);
+
+  // world border (more visible)
+  ctx.save();
+  ctx.globalAlpha = 0.85;
+  ctx.lineWidth = 6;
+  ctx.strokeStyle = "#4da3ff";
+  ctx.strokeRect(wx(0), wy(0), WORLD_W, WORLD_H);
+
+    // v10: dashed high-contrast border
+    ctx.save();
+    ctx.globalAlpha = 0.55;
+    ctx.setLineDash([12, 10]);
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#e6edf3';
+    ctx.strokeRect(wx(0), wy(0), WORLD_W, WORLD_H);
+    ctx.setLineDash([]);
+    ctx.restore();
+  ctx.globalAlpha = 0.20;
+  ctx.lineWidth = 18;
+  ctx.strokeStyle = "#4da3ff";
+  ctx.strokeRect(wx(0), wy(0), WORLD_W, WORLD_H);
+  ctx.restore();
+ }
+
+ function drawZone(){
+  if (!zone.active) return;
+
+  const x = wx(zone.x);
+  const y = wy(zone.y);
+
+  // soft fill
+  ctx.save();
+  ctx.globalAlpha = 0.16;
+  ctx.beginPath();
+  ctx.arc(x, y, zone.r, 0, Math.PI*2);
+  ctx.fillStyle = "#3df9a8";
+  ctx.fill();
+  ctx.restore();
+
+  // ring
+  ctx.save();
+  ctx.globalAlpha = 0.75;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(x, y, zone.r, 0, Math.PI*2);
+  ctx.strokeStyle = "#3df9a8";
+  ctx.stroke();
+  ctx.restore();
+
+  // text inside
+  ctx.save();
+
+    ctx.textAlign = "center";
+    ctx.fillStyle = "rgba(230,237,243,0.88)";
+    ctx.font = "900 20px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+    ctx.fillText("+10% SCORE", x, y + 7);
+    ctx.restore();
+}
+
+function drawObstacles(){
+ for (const o of obstacles){
+  const x = wx(o.x);
+  const y = wy(o.y);
+
+        // shadow
+        ctx.save();
+        ctx.globalAlpha = 0.35;
+        roundRectPath(x+2, y+3, o.w, o.h, o.corner);
+        ctx.fillStyle = "#000";
+        ctx.fill();
+        ctx.restore();
+
+        // body
+        ctx.save();
+        roundRectPath(x, y, o.w, o.h, o.corner);
+        ctx.fillStyle = "#0d1626";
+        ctx.fill();
+
+        ctx.globalAlpha = 0.9;
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "#22304a";
+        ctx.stroke();
+        ctx.restore();
+    }
+}
+
+function drawOrbs(){
+ for (const o of orbs){
+  const x = wx(o.x);
+  const y = wy(o.y);
+        if (!o.rare){
+          // diamond
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.rotate(0.8 + Math.sin(o.t * 3) * 0.15);
+          ctx.beginPath();
+          ctx.moveTo(0, -o.r);
+          ctx.lineTo(o.r, 0);
+          ctx.lineTo(0, o.r);
+          ctx.lineTo(-o.r, 0);
+          ctx.closePath();
+          ctx.fillStyle = "#3df9a8";
+          ctx.fill();
+          ctx.globalAlpha = 0.35;
+          ctx.strokeStyle = "#b8ffe4";
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          ctx.restore();
+        } else {
+          // same shape idea: still a diamond but bigger and different color (your latest preference)
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.rotate(0.3 + o.t * 0.7);
+          ctx.beginPath();
+          ctx.moveTo(0, -o.r);
+          ctx.lineTo(o.r, 0);
+          ctx.lineTo(0, o.r);
+          ctx.lineTo(-o.r, 0);
+          ctx.closePath();
+          ctx.fillStyle = "#d8ccff";
+          ctx.fill();
+          ctx.globalAlpha = 0.35;
+          ctx.strokeStyle = "#a78bfa";
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          ctx.restore();
+        }
+    }
+}
+
+function drawEnemies(){
+ for (const e of enemies){
+  const x = wx(e.x);
+  const y = wy(e.y);
+
+        // soft shadow
+        ctx.save();
+        ctx.globalAlpha = 0.25;
+        ctx.beginPath();
+        ctx.arc(x+2, y+3, e.r, 0, Math.PI*2);
+        ctx.fillStyle = "#000";
+        ctx.fill();
+        ctx.restore();
+
+        // body
+        ctx.beginPath();
+        ctx.arc(x, y, e.r, 0, Math.PI*2);
+        ctx.fillStyle = e.kind.color;
+        ctx.fill();
+
+        // outline
+        ctx.globalAlpha = 0.35;
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "#e6edf3";
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+    }
+}
+
+function drawPlayer(){
+ const x = wx(player.x);
+ const y = wy(player.y);
+
+    // body
+    ctx.beginPath();
+    ctx.arc(x, y, player.r, 0, Math.PI*2);
+    ctx.fillStyle = "#6ee7ff";
+    ctx.fill();
+
+    // highlight
+    ctx.save();
+    ctx.globalAlpha = 0.25;
+    ctx.beginPath();
+    ctx.arc(x - player.r*0.25, y - player.r*0.25, player.r*0.55, 0, Math.PI*2);
+    ctx.fillStyle = "#fff";
+    ctx.fill();
+    ctx.restore();
+}
+
+function drawParticles(){
+  for (const p of particles){
+    const x = wx(p.x);
+    const y = wy(p.y);
+    ctx.globalAlpha = clamp(p.life, 0, 1);
+    ctx.beginPath();
+    ctx.arc(x, y, p.r, 0, Math.PI*2);
+    ctx.fillStyle = "#e6edf3";
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+}
+
+
+function drawMinimap(){
+
+
+ /* =========================================================
+    SECTION 25B) RENDER: MINIMAP
+    Local area minimap around player: obstacles/zone/orbs/enemies + ticks.
+    ========================================================= */
+  const cx = VIEW_W - 140;
+  const cy = 140;
+  const r = 110;
+
+  const worldRange = 1700; // v10: dezoomed minimap (shows more than view)
+  const k = r / worldRange;
+
+  // frame + clip
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.closePath();
+  ctx.clip();
+
+  // background
+  ctx.globalAlpha = 0.55;
+  ctx.fillStyle = "#0b1220";
+  ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+  ctx.globalAlpha = 1;
+
+  // helper: world -> minimap
+  const mx = (x) => cx + (x - player.x) * k;
+  const my = (y) => cy + (y - player.y) * k;
+
+  // world borders + world center marker
+  {
+    const x0 = mx(0),       y0 = my(0);
+    const x1 = mx(WORLD_W), y1 = my(WORLD_H);
+
+    // border rectangle (clipped by minimap circle)
+    ctx.save();
+    ctx.globalAlpha = 0.9;
+    ctx.strokeStyle = "rgba(230,237,243,0.9)";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x0, y0, x1 - x0, y1 - y0);
+    ctx.restore();
+
+    // world center
+    const ccx = mx(WORLD_W / 2);
+    const ccy = my(WORLD_H / 2);
+    ctx.beginPath();
+    ctx.arc(ccx, ccy, 3.2, 0, Math.PI * 2);
+    ctx.fillStyle = "#ffd34d";
+    ctx.fill();
+  }
+
+  // obstacles
+  ctx.globalAlpha = 0.75;
+  ctx.fillStyle = "#15233a";
+  ctx.strokeStyle = "#2b3f63";
+  ctx.lineWidth = 1;
+  for (const ob of obstacles){
+    const x = mx(ob.x);
+    const y = my(ob.y);
+    const w = ob.w * k;
+    const h = ob.h * k;
+    // skip if far outside
+    if (x + w < cx - r || x > cx + r || y + h < cy - r || y > cy + r) continue;
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeRect(x, y, w, h);
+  }
+  ctx.globalAlpha = 1;
+
+  // zone
+  if (zone.active){
+    ctx.globalAlpha = 0.30;
+    ctx.fillStyle = "#62ffbf";
+    ctx.beginPath();
+    ctx.arc(mx(zone.x), my(zone.y), zone.r * k, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  // orbs
+  for (const o of orbs){
+    const x = mx(o.x), y = my(o.y);
+    if (Math.hypot(x - cx, y - cy) > r + 8) continue;
+
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(0.8);
+    ctx.beginPath();
+    const rr = o.rare ? 4.8 : 3.8;
+    ctx.moveTo(0, -rr);
+    ctx.lineTo(rr, 0);
+    ctx.lineTo(0, rr);
+    ctx.lineTo(-rr, 0);
+    ctx.closePath();
+    ctx.fillStyle = o.rare ? "#b69cff" : "#3df9a8";
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // enemies intentionally NOT shown on minimap (v10 request)
+
+  // player (always center)
+  ctx.beginPath();
+  ctx.arc(cx, cy, 4.2, 0, Math.PI * 2);
+  ctx.fillStyle = "#6ee7ff";
+  ctx.fill();
+
+  ctx.restore();
+
+  // ring + heading ticks
+  ctx.save();
+  ctx.globalAlpha = 0.95;
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = "#35507e";
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.globalAlpha = 0.55;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - r);
+  ctx.lineTo(cx, cy - r + 10);
+  ctx.moveTo(cx + r, cy);
+  ctx.lineTo(cx + r - 10, cy);
+  ctx.moveTo(cx, cy + r);
+  ctx.lineTo(cx, cy + r - 10);
+  ctx.moveTo(cx - r, cy);
+  ctx.lineTo(cx - r + 10, cy);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawOverlayText(){
+ ctx.textAlign = "center";
+ ctx.fillStyle = "#e6edf3";
+
+    if (!running && !gameOver){
+      ctx.globalAlpha = 0.92;
+
+      ctx.font = "900 44px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+      ctx.fillText("DODGE", VIEW_W/2, VIEW_H/2 - 40);
+
+      ctx.globalAlpha = 0.78;
+      ctx.font = "600 18px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+      ctx.fillText("Press WASD or Arrows to start", VIEW_W/2, VIEW_H/2 + 6);
+      ctx.fillText("Shift/Space = Dash • P = Pause • R = Restart", VIEW_W/2, VIEW_H/2 + 34);
+      ctx.fillText("Level up every 1000 score → choose 1 perk", VIEW_W/2, VIEW_H/2 + 62);
+      ctx.globalAlpha = 1;
+  }
+
+  if (paused && choiceOverlay.style.display !== "grid" && running && !gameOver){
+    ctx.globalAlpha = 0.9;
+    ctx.font = "900 44px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+    ctx.fillText("PAUSED", VIEW_W/2, VIEW_H/2);
+    ctx.globalAlpha = 1;
+  }
+
+  if (gameOver){
+    ctx.globalAlpha = 0.97;
+    ctx.font = "900 44px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+    ctx.fillText("GAME OVER", VIEW_W/2, VIEW_H/2 - 22);
+
+     ctx.globalAlpha = 0.82;
+     ctx.font = "700 18px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+     ctx.fillText(`Score: ${Math.floor(score)} • Best: ${bestScore} • Level: ${level}`, VIEW_W/2,
+VIEW_H/2 + 12);
+     ctx.fillText("Press R to restart", VIEW_W/2, VIEW_H/2 + 42);
+     ctx.globalAlpha = 1;
+   }
+ }
+
+ function draw(){
+
+
+ /* =========================================================
+    SECTION 25C) RENDER: COMPOSITE
+    Ordered draw calls for the entire frame.
+    ========================================================= */
+   drawBackground();   drawObstacles();
+    drawZones();
+    drawOrbs();
+   drawEnemies();
+   drawPlayer();
+   drawParticles();
+   drawMinimap();
+   drawOverlayText();
+ }
+
+ /* =========================================================
+
+    SECTION 26) MAIN LOOP
+    requestAnimationFrame loop.
+    ========================================================= */
+ let last = performance.now();
+ function loop(now){
+
+
+ /* =========================================================
+    SECTION 26A) DELTA TIME CLAMP
+    Cap dt to avoid simulation spikes when tab is inactive.
+    ========================================================= */
+   const dt = Math.min(0.033, (now - last) / 1000);
+   last = now;
+   update(dt);
+   draw();
+   requestAnimationFrame(loop);
+ }
+
+ /* =========================================================
+    SECTION 27) INIT
+    Boot the game.
+    ========================================================= */
+ resetRun();
+ requestAnimationFrame(loop);
+
+
+ /* =========================================================
+    SECTION 27A) BOOT
+    Initialize run state then start RAF loop.
+    ========================================================= */
+
+})();
+</script>
+</body>
+</html>
+
