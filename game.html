@@ -263,7 +263,54 @@ canvas{
     background: linear-gradient(90deg, rgba(61,249,168,0.95), rgba(167,139,250,0.95));
   }
 
-  @media (max-width: 980px){
+  
+    .btn{
+      width:100%;
+      padding:10px 12px;
+      border-radius:12px;
+      border:1px solid #35507e;
+      background:#111826;
+      color:#e6edf3;
+      font-weight:900;
+      letter-spacing:.3px;
+      cursor:pointer;
+      transition: transform .08s ease, border-color .08s ease, background .08s ease;
+    }
+    .btn:hover{ transform: translateY(-1px); border-color:#5a7bb8; background:#141d2d; }
+    .btn:active{ transform: translateY(0px); }
+    .btn.big{ width:auto; padding:12px 18px; border-radius:14px; }
+
+    .startOverlay{
+      position:absolute;
+      inset:0;
+      display:grid;
+      place-items:center;
+      background: rgba(0,0,0,.45);
+      z-index:50;
+    }
+    .startCard{
+      width:min(520px, 92vw);
+      background:#0e1420;
+      border:1px solid #22304a;
+      border-radius:18px;
+      padding:16px;
+      text-align:center;
+      box-shadow: 0 10px 30px rgba(0,0,0,.35);
+    }
+    .startTitle{
+      font-weight:900;
+      font-size:40px;
+      letter-spacing:1px;
+      margin-bottom:6px;
+    }
+    .startSub{
+      font-size:13px;
+      opacity:.85;
+      margin-bottom:14px;
+    }
+
+
+    @media (max-width: 980px){
     .wrap{
       grid-template-columns: 1fr;
       grid-template-rows: auto 1fr;
@@ -283,6 +330,11 @@ canvas{
        <div class="pill" id="bestScorePill">Best score: 0</div>
        <div class="pill" id="bestLevelPill">Best level: 1</div>
       </div>
+
+      <div class="row" id="navRow">
+       <button class="btn" id="homeBtn" title="Go back to Home (H)">HOME</button>
+      </div>
+
       <div class="row" id="missionRow">
        <div class="title">Mission</div>
        <div class="small muted" id="missionPill">Mission: —</div>
@@ -294,8 +346,7 @@ canvas{
 
       <div class="row">
        <div class="title">Stats</div>
-       <div class="small muted">Shows your bonuses vs base (Base / +X / -X).</div>
-
+       
      <div class="statGrid">
       <div class="statItem"><b>Speed</b><span id="statSpeed"
 class="muted">Base</span></div>
@@ -320,7 +371,16 @@ class="muted">Base</span></div>
     <div class="pill" id="dashPill">Dash: Ready</div>
 </div>
 
-   <canvas id="c" width="1600" height="900"></canvas>
+   
+      <div class="startOverlay" id="startOverlay">
+        <div class="startCard">
+          <div class="startTitle">DODGE</div>
+          <div class="startSub">Click PLAY to start (or use WASD/Arrow Keys)</div>
+          <button class="btn big" id="startBtn">PLAY</button>
+        </div>
+      </div>
+
+      <canvas id="c" width="1600" height="900"></canvas>
   </div>
  </div>
 
@@ -361,6 +421,20 @@ class="kbd">3</span>)
 (() => {
   "use strict";
 
+  /* =========================================================
+     FILE MAP (v12 final pass)
+     - BOOT/CONFIG: constants, world size, level thresholds
+     - DOM/UI: left panel, start overlay, home button, HUD
+     - HELPERS: clamp/rand, collision, formatting
+     - ENTITIES: player, enemies, orbs, obstacles
+     - SYSTEMS: zones, missions, events, perks
+     - GAME FLOW: start/pause/reset/level-up/scoring
+     - UPDATE: simulation step (dt)
+     - RENDER: background/grid, world, minimap, overlays
+     - PERF: pattern grid, throttled DOM, adaptive particles
+     ========================================================= */
+
+
  /* =========================================================
     SECTION 1) UTILITIES
     Small helper functions used everywhere.
@@ -391,6 +465,36 @@ class="kbd">3</span>)
  const canvas = document.getElementById("c");
 
  const ctx = canvas.getContext("2d");
+
+  /* =========================================================
+     PERF: LIGHTWEIGHT RENDER/DOM OPTIMIZATIONS (v12 final)
+     - Grid is drawn via a cached canvas pattern (fewer draw calls)
+     - HUD/Stats DOM updates are throttled (canvas still 60fps)
+     - Particle bursts auto-scale down only on low FPS devices
+     ========================================================= */
+  const GRID_STEP = 64;
+  const _gridPatCanvas = document.createElement("canvas");
+  _gridPatCanvas.width = GRID_STEP;
+  _gridPatCanvas.height = GRID_STEP;
+  const _gpc = _gridPatCanvas.getContext("2d");
+  _gpc.clearRect(0,0,GRID_STEP,GRID_STEP);
+  _gpc.globalAlpha = 0.12;
+  _gpc.strokeStyle = "#22304a";
+  _gpc.lineWidth = 1;
+  _gpc.beginPath();
+  _gpc.moveTo(GRID_STEP-0.5, 0);
+  _gpc.lineTo(GRID_STEP-0.5, GRID_STEP);
+  _gpc.moveTo(0, GRID_STEP-0.5);
+  _gpc.lineTo(GRID_STEP, GRID_STEP-0.5);
+  _gpc.stroke();
+  const _gridPattern = ctx.createPattern(_gridPatCanvas, "repeat");
+
+  let _hudAcc = 0;
+  const _HUD_INTERVAL = 1/12; // 12 Hz
+  let _frameMsAvg = 16.7;
+  let _perfScale = 1.0; // stays 1 on normal devices
+  const _MAX_PARTICLES = 450;
+
  const gameWrap = document.getElementById("gameWrap");
 
  const hudLevelPill = document.getElementById("hudLevelPill");
@@ -413,7 +517,11 @@ class="kbd">3</span>)
  const choiceOverlay = document.getElementById("choiceOverlay");
  const choiceInfo = document.getElementById("choiceInfo");
 
- const optEls = [
+ 
+  const startOverlay  = document.getElementById("startOverlay");
+  const startBtn      = document.getElementById("startBtn");
+  const homeBtn       = document.getElementById("homeBtn");
+const optEls = [
 
 
  /* =========================================================
@@ -549,6 +657,13 @@ function setSpecialLevel(mode){
 }
 
 function rollSpecialLevel(){
+  // Events only after Level 5
+  if (level <= 5){
+    setSpecialLevel(SPECIAL.NONE);
+    lastSpecialLevel = SPECIAL.NONE;
+    return;
+  }
+
   // 5% yellow-only, 5% no-dash, cannot repeat twice in a row
   let rolled = SPECIAL.NONE;
   const r = Math.random();
@@ -1030,9 +1145,9 @@ const ZONE_R = {
 
 // Minimum distance between centers (same-type only)
 const ZONE_MIN_DIST = {
-  swamp: 175,
-  speed: 175,
-  exp:   250,
+  swamp: 250,
+  speed: 250,
+  exp:   325,
   noDash:300,
 };
 
@@ -1224,8 +1339,8 @@ function drawZones(){
   for (const z of ZONES.swamp) drawCircleLabeled(z, "#3df9a8", "#b8ffe4", "SWAMP -15% SPEED");
 
   // BR speed zones
-  for (const z of ZONES.speedPlayer) drawCircleLabeled(z, "#6ee7ff", "#c9f3ff", "+15% PLAYER SPD");
-  for (const z of ZONES.speedEnemy)  drawCircleLabeled(z, "#ff5b5b", "#ffd4d4", "+15% ENEMY SPD");
+  for (const z of ZONES.speedPlayer) drawCircleLabeled(z, "#6ee7ff", "#c9f3ff", "+15% PLAYER SPEED");
+  for (const z of ZONES.speedEnemy)  drawCircleLabeled(z, "#ff5b5b", "#ffd4d4", "+15% ENEMY SPEED");
 
   // BL exp
   for (const z of ZONES.exp) drawCircleLabeled(z, "#ffd34d", "#fff0b8", "+10% SCORE");
@@ -1459,7 +1574,8 @@ const particles = [];
     ========================================================= */
 function spawnBurst(x, y, n, speed=520){
   for (let i=0;i<n;i++){
-   particles.push({
+   if (particles.length >= _MAX_PARTICLES) break;
+      particles.push({
      x, y,
      vx: rand(-speed, speed),
 
@@ -1712,7 +1828,7 @@ kind:"normal",
  const RARE_PERKS = [
    { id:"R_INVULN_DASH_03", name:"dash invuln +0.3s", desc:"Invulnerability during dash +0.3s (stack).", kind:"rare",
      apply: () => { player.invulnDash += 0.3; } },
-   { id:"R_MAXCAP_M2", name:"enemy cap -2", desc:"Max enemies -2 (stack).", kind:"rare",
+   { id:"R_MAXCAP_M2", name:"enemy cap -5", desc:"Max enemies -5 (stack).", kind:"rare",
      apply: () => { maxCapMod -= 5; } },
    { id:"R_DASHCD_M15", name:"dash cooldown -1.5", desc:"Dash cooldown -1.5s (stack).",
 kind:"rare",
@@ -1735,8 +1851,8 @@ kind:"rare",
     { id:"K_RISK_1", name:"+90 speed, -75 dash speed", desc:"Trade: +90 speed, but -75 dash speed.", kind:"risky",
       apply: () => { player.baseSpeed += 90; player.dashSpeed = Math.max(0, player.dashSpeed
 - 75); } },
-    { id:"K_RISK_2", name:"+150 dash speed, +1 dash cooldown", desc:"Dash stronger, but cooldown +1s.", kind:"risky",
-      apply: () => { player.dashSpeed += 150; player.dashCooldown += 1; } },
+    { id:"K_RISK_2", name:"+150 dash speed, +0.75 dash cooldown", desc:"Dash stronger, but cooldown +0.75s.", kind:"risky",
+      apply: () => { player.dashSpeed += 150; player.dashCooldown += 0.75; } },
     { id:"K_RISK_3", name:"+150 dash speed, -40 speed", desc:"Dash stronger, but speed -40.",
 kind:"risky",
       apply: () => { player.dashSpeed += 150; player.baseSpeed = Math.max(0, player.baseSpeed
@@ -1796,6 +1912,10 @@ player.dashSpeed = Math.max(0, player.dashSpeed - 75); } },
  window.addEventListener("keydown", (e) => {
   const k = e.key.toLowerCase();
 
+    // Home shortcut
+    if (k === "h") { goHome(); return; }
+
+
      if (k === "r") { resetRun(); return; }
 
      if (choiceOverlay.style.display === "grid") {
@@ -1838,6 +1958,16 @@ function start(){
   gameOver = false;
 }
 
+function syncStartOverlay(){
+  if (!startOverlay) return;
+  startOverlay.style.display = (!running && !gameOver) ? "grid" : "none";
+}
+
+function goHome(){
+  // same-origin navigation to your home page
+  window.location.href = "index.html";
+}
+
 function togglePause(){
   if (!running || gameOver) return;
   paused = !paused;
@@ -1860,6 +1990,7 @@ function updateHud(){
 
      bestScorePill.textContent = `Best score: ${bestScore}`;
      bestLevelPill.textContent = `Best level: ${bestLevel}`;
+  syncStartOverlay();
  }
 
  function updateStatsUI(){
@@ -1968,6 +2099,9 @@ function tryDash(){
   // v11 special level: NO DASH
   if (specialLevel === SPECIAL.NO_DASH) return;
 
+  // Zone rule: NO-DASH circles (BL) block dash while inside
+  if (inNoDashZone()) return;
+
     const moving =
      keys.has("arrowleft")||keys.has("a")||
      keys.has("arrowright")||keys.has("d")||
@@ -2068,6 +2202,15 @@ function pickPerk(index){
 }
 
 optEls.forEach((o, idx) => o.root.addEventListener("click", () => pickPerk(idx)));
+
+  // UI buttons
+  if (startBtn) startBtn.addEventListener("click", () => {
+    start();
+    syncStartOverlay();
+    // ensure keyboard works after click
+    canvas && canvas.focus && canvas.focus();
+  });
+  if (homeBtn) homeBtn.addEventListener("click", goHome);
 
 /* =========================================================
    SECTION 22) DEATH / LIVES
@@ -2386,9 +2529,16 @@ for (const e of enemies){
     // particles
     updateParticles(dt);
 
-    // camera + HUD
+    // camera + HUD (DOM throttled)
     updateCamera(player);
-    updateHud();
+    _hudAcc += dt;
+    if (_hudAcc >= _HUD_INTERVAL){
+      _hudAcc = 0;
+      updateHud();
+      updateStatsUI();
+      updateMissionHud();
+      syncStartOverlay();
+    }
 }
 
 /* =========================================================
@@ -2468,25 +2618,13 @@ function drawBackground(){
     // subtle grid
     ctx.globalAlpha = 0.10;
     ctx.lineWidth = 1;
+    // grid (fast): cached pattern, aligned to world coordinates
+    ctx.save();
+    ctx.fillStyle = _gridPattern;
+    ctx.translate(-(camera.x % GRID_STEP), -(camera.y % GRID_STEP));
+    ctx.fillRect(0, 0, VIEW_W + GRID_STEP, VIEW_H + GRID_STEP);
+    ctx.restore();
 
-    const startX = Math.floor(camera.x / 64) * 64;
-    const startY = Math.floor(camera.y / 64) * 64;
-
-    for (let x = startX; x <= camera.x + VIEW_W; x += 64){
-      ctx.beginPath();
-      ctx.moveTo(wx(x), 0);
-      ctx.lineTo(wx(x), VIEW_H);
-      ctx.strokeStyle = "#22304a";
-      ctx.stroke();
-    }
-    for (let y = startY; y <= camera.y + VIEW_H; y += 64){
-
-   ctx.beginPath();
-   ctx.moveTo(0, wy(y));
-   ctx.lineTo(VIEW_W, wy(y));
-   ctx.strokeStyle = "#22304a";
-   ctx.stroke();
-  }
   ctx.save();
   // quadrant divider lines (world center)
   ctx.globalAlpha = 0.35;
@@ -2973,6 +3111,12 @@ function draw(){
     Cap dt to avoid simulation spikes when tab is inactive.
     ========================================================= */
    const dt = Math.min(0.033, (now - last) / 1000);
+   // PERF: update FPS smoothing (EMA) and auto particle scaling
+   const frameMs = dt * 1000;
+   _frameMsAvg = (_frameMsAvg * 0.92) + (frameMs * 0.08);
+   const fps = 1000 / Math.max(1, _frameMsAvg);
+   _perfScale = (fps >= 55) ? 1.0 : (fps >= 45 ? 0.85 : (fps >= 35 ? 0.7 : 0.55));
+
    last = now;
    update(dt);
    draw();
@@ -2996,3 +3140,4 @@ function draw(){
 </script>
 </body>
 </html>
+
