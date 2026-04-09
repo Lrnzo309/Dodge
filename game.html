@@ -598,6 +598,7 @@ function updateCamera(player){
 }
 const wx = (x) => (x - camera.x) * ZOOM;
 const wy = (y) => (y - camera.y) * ZOOM;
+const ws = (v) => v * ZOOM;
 
 
  /* =========================================================
@@ -773,7 +774,7 @@ function enemyBaseSpeed(kindKey, lv){
 const obstacles = [];
 const OB_MIN_GAP = 22; // spacing so they don't overlap
 const OB_CORNER = 16; // rounded corners (visual)
-const OB_PAD = 10; // collision padding
+const OB_PAD = 0; // collision padding
 
 
  /* =========================================================
@@ -2690,7 +2691,7 @@ ctx.globalAlpha = 1;
   ctx.save();
   ctx.globalAlpha = 0.16;
   ctx.beginPath();
-  ctx.arc(x, y, zone.r, 0, Math.PI*2);
+  ctx.arc(x, y, ws(zone.r), 0, Math.PI*2);
   ctx.fillStyle = "#3df9a8";
   ctx.fill();
   ctx.restore();
@@ -2700,7 +2701,7 @@ ctx.globalAlpha = 1;
   ctx.globalAlpha = 0.75;
   ctx.lineWidth = 3;
   ctx.beginPath();
-  ctx.arc(x, y, zone.r, 0, Math.PI*2);
+  ctx.arc(x, y, ws(zone.r), 0, Math.PI*2);
   ctx.strokeStyle = "#3df9a8";
   ctx.stroke();
   ctx.restore();
@@ -2723,14 +2724,14 @@ function drawObstacles(){
         // shadow
         ctx.save();
         ctx.globalAlpha = 0.35;
-        roundRectPath(x+2, y+3, o.w, o.h, o.corner);
+        roundRectPath(x + ws(2), y + ws(3), ws(o.w), ws(o.h), ws(o.corner));
         ctx.fillStyle = "#000";
         ctx.fill();
         ctx.restore();
 
         // body
         ctx.save();
-        roundRectPath(x, y, o.w, o.h, o.corner);
+        roundRectPath(x, y, ws(o.w), ws(o.h), ws(o.corner));
         ctx.fillStyle = "#0d1626";
         ctx.fill();
 
@@ -2752,10 +2753,10 @@ function drawOrbs(){
           ctx.translate(x, y);
           ctx.rotate(0.8 + Math.sin(o.t * 3) * 0.15);
           ctx.beginPath();
-          ctx.moveTo(0, -o.r);
-          ctx.lineTo(o.r, 0);
-          ctx.lineTo(0, o.r);
-          ctx.lineTo(-o.r, 0);
+          ctx.moveTo(0, -ws(o.r));
+          ctx.lineTo(ws(o.r), 0);
+          ctx.lineTo(0, ws(o.r));
+          ctx.lineTo(-ws(o.r), 0);
           ctx.closePath();
           ctx.fillStyle = "#3df9a8";
           ctx.fill();
@@ -2770,10 +2771,10 @@ function drawOrbs(){
           ctx.translate(x, y);
           ctx.rotate(0.3 + o.t * 0.7);
           ctx.beginPath();
-          ctx.moveTo(0, -o.r);
-          ctx.lineTo(o.r, 0);
-          ctx.lineTo(0, o.r);
-          ctx.lineTo(-o.r, 0);
+          ctx.moveTo(0, -ws(o.r));
+          ctx.lineTo(ws(o.r), 0);
+          ctx.lineTo(0, ws(o.r));
+          ctx.lineTo(-ws(o.r), 0);
           ctx.closePath();
           ctx.fillStyle = "#d8ccff";
           ctx.fill();
@@ -2795,14 +2796,14 @@ function drawEnemies(){
         ctx.save();
         ctx.globalAlpha = 0.25;
         ctx.beginPath();
-        ctx.arc(x+2, y+3, e.r, 0, Math.PI*2);
+        ctx.arc(x + ws(2), y + ws(3), ws(e.r), 0, Math.PI*2);
         ctx.fillStyle = "#000";
         ctx.fill();
         ctx.restore();
 
         // body
         ctx.beginPath();
-        ctx.arc(x, y, e.r, 0, Math.PI*2);
+        ctx.arc(x, y, ws(e.r), 0, Math.PI*2);
         ctx.fillStyle = e.kind.color;
         ctx.fill();
 
@@ -2821,7 +2822,7 @@ function drawPlayer(){
 
     // body
     ctx.beginPath();
-    ctx.arc(x, y, player.r, 0, Math.PI*2);
+    ctx.arc(x, y, ws(player.r), 0, Math.PI*2);
     ctx.fillStyle = "#6ee7ff";
     ctx.fill();
 
@@ -2829,7 +2830,7 @@ function drawPlayer(){
     ctx.save();
     ctx.globalAlpha = 0.25;
     ctx.beginPath();
-    ctx.arc(x - player.r*0.25, y - player.r*0.25, player.r*0.55, 0, Math.PI*2);
+    ctx.arc(x - ws(player.r*0.25), y - ws(player.r*0.25), ws(player.r*0.55), 0, Math.PI*2);
     ctx.fillStyle = "#fff";
     ctx.fill();
     ctx.restore();
@@ -2841,7 +2842,7 @@ function drawParticles(){
     const y = wy(p.y);
     ctx.globalAlpha = clamp(p.life, 0, 1);
     ctx.beginPath();
-    ctx.arc(x, y, p.r, 0, Math.PI*2);
+    ctx.arc(x, y, ws(p.r), 0, Math.PI*2);
     ctx.fillStyle = "#e6edf3";
     ctx.fill();
     ctx.globalAlpha = 1;
@@ -3140,4 +3141,3 @@ function draw(){
 </script>
 </body>
 </html>
-
